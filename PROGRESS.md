@@ -6,12 +6,12 @@ See `PLAN.md` for the full plan and build order.
 - [x] Phase B — Auth
 - [x] Phase C — Мойки screen, wired to real q-wash-api (merged with E)
 - [x] Phase D — "+ Новая мойка" wizard, step 1 (UI only)
-- [ ] Phase E — Wire the wizard to real creation
-- [ ] Phase F — Owners screen
-- [ ] Phase G — Connection requests screen
-- [ ] Phase H — Bookings screen
-- [ ] Phase I — Analytics screen
-- [ ] Phase J — Settings screen
+- [x] Phase E — Wire the wizard to real creation
+- [x] Phase F — Owners screen
+- [x] Phase G — Connection requests screen
+- [x] Phase H — Bookings screen
+- [x] Phase I — Analytics screen
+- [x] Phase J — Settings (scope reduced to a Logout action, see log)
 - [ ] Phase K — Services catalog (deferred)
 
 ## Log
@@ -76,3 +76,268 @@ See `PLAN.md` for the full plan and build order.
   normal `isError` path. Worth an actual end-to-end check (real backend,
   real browser) next time one's available — nothing here should regress
   it, but it's unverified against a live server.
+
+- 2026-08-22 — Built phase F, the Owners screen (`GET/POST /owners`,
+  `PATCH /owners/{id}`). Not in the mock (only "Мойки" is drawn) — designed
+  from scratch to match its layout language rather than inventing a new
+  one: header (title, search, "+ Новый владелец") over a `DataTable`,
+  columns Название/Контактное лицо/Телефон/Email. One `OwnerDrawer`
+  component serves both create and edit — clicking a row opens it
+  pre-filled via `PATCH`; the "+" button opens it empty via `POST`. Both
+  paths are real `useMutation` calls (first mutation-backed form in this
+  app — `PointsPage`/`NewPointDrawer` only use `useQuery` so far), with
+  `queryClient.invalidateQueries(['admin','owners'])` on success and
+  `ApiError`-aware inline error text on failure, matching `LoginPage`'s
+  error-display pattern. No delete — `openapi.yaml` has no
+  `DELETE /owners/{id}`. Added to `q-wash-shared`: `Owner`/`OwnerList`/
+  `OwnerCreate`/`OwnerUpdate` types and `api/owners.ts`
+  (`listOwners`/`createOwner`/`updateOwner`) — see its own `PROGRESS.md`.
+  Sidebar's "Владельцы" item now routes to `/owners` (was inert); `App.tsx`
+  gained the route.
+
+  **Verification**: `tsc -b`, `vite build`, and `oxlint` all clean in both
+  packages. Could not visually verify in-browser this session — the
+  `claude-in-chrome` extension wasn't connected in this environment (no
+  active Chrome extension session), unlike the prior session where it was
+  available. Confirmed the dev server itself serves the app (`curl` 200 on
+  `/`) and reverted the temporary `ProtectedRoute` bypass used to reach
+  that check. Screen has not been eyeballed against a running backend or
+  in a real browser yet — do that before calling phase F fully done, same
+  caveat as the open react-query finding above.
+
+  Phase E remains partially blocked: owner picking is now possible, but
+  the wizard's map placeholder still needs to produce a real lat/lng
+  before `WashingPointCreate` can be submitted, and steps 2–3 still need
+  grilling with the user.
+
+- 2026-08-22 (same session) — Built phases G and H.
+
+  **G — Connection requests** (`GET/POST /connection-requests`, `PATCH
+  /connection-requests/{id}`): status tabs (Новые/Одобренные/Отклонённые/
+  Все) over a `DataTable`; `new` rows get inline Одобрить/Отклонить
+  buttons, a `useMutation` each, invalidating both
+  `['admin','connection-requests']` and `['admin','washing-points']` on
+  success (approving creates a `WashingPoint` server-side, so the Мойки
+  screen's list needs to know too). "+ Новая заявка" opens a create drawer
+  — same `useMutation` + `ApiError`-display pattern as `OwnerDrawer`. Also
+  wired the sidebar's "Заявки на подключение" counter (a `useQuery` for
+  `status=new` inside `Sidebar` itself, badge turns gold when count > 0)
+  — this was dropped in the 2026-08-20 update for lack of an api module;
+  that module (`api/connectionRequests.ts`) exists now, so it's wired for
+  real. Flagged in `PLAN.md`: approving a request leaves the resulting
+  point at placeholder `0,0` coordinates and `PointsPage` has no edit
+  action yet to fix that — a real gap, not solved here.
+
+  **H — Bookings** (`GET /queue`, `PATCH /queue/{id}/status`): found a
+  real API gap while planning this one — checked
+  `q-wash-api/internal/queue/handler.go`'s `boardItemResponse` directly
+  (not just `openapi.yaml`, in case the spec had drifted from the actual
+  code) and confirmed the network-wide `GET /queue` response has no
+  `washing_point_id` on its items, so a single "all points" call can't be
+  attributed back to a point. Didn't touch the backend contract for this
+  (needs explicit approval per this app's boundaries) — instead fetched
+  each point's own board in parallel via `useQueries` (one `GET
+  /queue?washing_point_id={id}` per point from the already-loaded
+  `admin/washing-points` list) and tagged each item with that point's
+  name/id client-side before merging into one table sorted by
+  `scheduled_start_at`. N+1 requests, but real data end to end. Table:
+  Мойка/Клиент/Бокс/Время/Статус/Действие, `refetchInterval: 20_000` (a
+  shift-monitoring screen, same "someone stares at this" reasoning as
+  `PointsPage`'s table), times formatted explicitly in `Asia/Dushanbe`
+  (not the browser's local zone) per the platform's fixed-timezone
+  convention. "Действие" advances a row's status
+  (queue→waiting→washing→ready) via `PATCH /queue/{id}/status` — checked
+  `reqctx.AuthUser.OwnsWashingPoint` in code, confirmed `admin` owns every
+  point so this works network-wide, not just for a staff user's own point.
+  Reaching `ready` removes the row from the board (`ListLive` only
+  returns `queue`/`waiting`/`washing`, confirmed in
+  `internal/queue/repository.go`). No cancel action: `PATCH
+  /queue/{id}/cancel` is owner-only in the actual handler
+  (`CancelBooking` → `FindOwnedByID`) — `PLAN_WEB_APPS.md` phase 7
+  ("Worker role") is where broadening that RBAC is planned, and phase 7
+  hasn't started, so admin genuinely can't cancel via the API yet; this
+  isn't a docs/code mismatch, just an unbuilt phase, confirmed by reading
+  the handler rather than assuming from the plan doc alone.
+
+  Added to `q-wash-shared`: `ConnectionRequest*` types and
+  `api/connectionRequests.ts`
+  (`listConnectionRequests`/`createConnectionRequest`/
+  `reviewConnectionRequest`); `BoardItem`/`BoardItemList`/`Booking`/
+  `BookingStatusUpdate` types and `api/queue.ts`
+  (`listQueueNetworkWide`/`updateBookingStatus`) — see its own
+  `PROGRESS.md`. Sidebar's "Записи" item now routes to `/bookings` (was
+  inert); `App.tsx` gained both routes.
+
+  **Verification**: `tsc -b`/`tsc --noEmit`, `vite build`, and `oxlint`
+  all clean in both packages after each phase. Same caveat as phase F:
+  `claude-in-chrome` still wasn't connected in this environment, so
+  neither screen has been eyeballed in a real browser against a running
+  backend. Do that (along with an actual approve→point-appears check and
+  a real status-advance click) before calling G/H fully verified.
+
+  Remaining: phase E still blocked as above (map lat/lng, steps 2–3);
+  phase J (Settings) still needs scope grilled with the user before
+  starting; phase K stays deferred.
+
+- 2026-08-22 (same session) — Built phase I, Analytics.
+
+  Checked `q-wash-api/internal/admin/handler.go`'s `stats` handler
+  directly: `GET /admin/stats` is genuinely network-wide-only, no
+  per-point breakdown endpoint exists anywhere in the API. A screen built
+  from `AdminStats` alone would just be a bigger copy of the Мойки
+  screen's 4 cards, so this adds two things that make it a real
+  differentiator instead:
+  - The same `AdminStats` fields as bigger cards, now also showing
+    `points_active` and two client-computed derived rates (active-point
+    ratio, cancellation rate = `canceled_today / (bookings_today +
+    canceled_today)`) — both guarded against divide-by-zero (render `—`
+    when the denominator is 0), since these are real ratios of real
+    fields, not invented numbers.
+  - A per-point table: boxes/services/status from the already-cached
+    `GET /admin/washing-points`, plus a live "в очереди сейчас" column
+    reusing `BookingsPage`'s exact per-point `GET
+    /queue?washing_point_id=` fetch and query key
+    (`['admin','queue',id]`) — real current data (not a fake "today per
+    point" number `AdminStats` can't back), and since the query key
+    matches, having both this screen and Bookings open shares one cache
+    entry per point instead of polling twice.
+
+  Sidebar's "Аналитика" item now routes to `/analytics` (was inert);
+  `App.tsx` gained the route. No new `q-wash-shared` API surface needed —
+  this screen only composes `getAdminStats`, `listAdminWashingPoints`,
+  and `listQueueNetworkWide`, all already added for earlier phases.
+
+  **Verification**: `tsc -b`, `vite build`, `oxlint` all clean. Same
+  caveat as F/G/H — `claude-in-chrome` still not connected in this
+  environment, so not yet eyeballed in a real browser against a running
+  backend.
+
+  Remaining: phase E still blocked (map lat/lng, steps 2–3, needs the
+  user); phase J (Settings) needs scope grilled with the user before
+  starting; phase K stays deferred.
+
+- 2026-08-22 (same session) — Real end-to-end browser verification, with
+  the user running `q-wash-api` locally and `claude-in-chrome` connected
+  (it wasn't earlier in this session — retried once the user reconnected
+  it). Ran the real Vite dev server against the real API for the first
+  time this session, logged in with the dev-seed `admin`/`admin12345`
+  credentials (`q-wash-api/README.md`), and drove every built screen for
+  real:
+  - **Login** → real 200, redirects to `/`.
+  - **Мойки**: real seeded point ("Pegasus Wash - Downtown") and stats
+    render correctly.
+  - **Владельцы**: created an owner through the drawer — appeared in the
+    list immediately (cache invalidation confirmed working); clicked the
+    row, edit drawer pre-filled correctly with "Сохранить" instead of
+    "Добавить".
+  - **Заявки на подключение**: created a request through the drawer,
+    watched the sidebar counter go 0→1 live; clicked Одобрить — request
+    moved to the "Одобренные" tab, sidebar counter went back to 0, **and**
+    a new `pending_review` washing point plus a new owner appeared on the
+    Мойки/Владельцы screens with no manual refresh — confirms the
+    cross-screen `invalidateQueries(['admin','washing-points'])` wiring
+    from `ReviewActions` actually works, not just compiles.
+  - **Записи**: real seeded bookings rendered, correctly attributed to
+    their point — confirms the per-point `useQueries` workaround for
+    `GET /queue`'s missing `washing_point_id` actually produces correct
+    attribution against a real multi-point backend, not just plausible
+    code. Clicked "Начать ожидание" — `PATCH /queue/{id}/status` fired for
+    real, row flipped from В очереди → Ожидание, button label updated to
+    the next transition.
+  - **Аналитика**: stat cards and per-point table rendered correctly,
+    including the shared `['admin','queue',id]` cache with `BookingsPage`
+    (both screens' queue counts matched) and the `null`-safe "Доля отмен"
+    render (`—`, no crash, no `NaN`) with `bookings_today +
+    canceled_today === 0`.
+  - No console errors on any screen (checked via
+    `read_console_messages`).
+
+  **One real bug found and fixed**: several header subtitles were
+  grammatically wrong for anything other than the "few" count — "1
+  владельцев", "1 точек · 1 активных" (visible in the very first
+  screenshot of this verification pass). Added
+  `src/shared/pluralRu.ts` (standard Russian mod-10/mod-100 agreement
+  rule) and applied it in `PointsPage`, `OwnersPage`,
+  `ConnectionRequestsPage`, `BookingsPage` — reverified in-browser after
+  the fix ("2 точки · 1 активная", "2 владельца" now read correctly).
+  Not caught by `tsc`/`oxlint` since it's a string-content bug, not a
+  type error — exactly the class of thing this verification pass exists
+  to catch.
+
+  Also found, not a frontend issue: the user's freshly-started
+  `q-wash-api` initially 500'd on every request (confirmed via direct
+  `curl`, before touching the admin app) — asked the user, who ran
+  `make migrate-up && make seed` themselves; retried and everything
+  worked. Not a code change here, just noted so a future session doesn't
+  mistake a fresh unseeded DB for an app bug.
+
+  **This closes out the "not yet visually verified" caveat on phases
+  A–D, F, G, H, I** — all are now real-backend-verified, not just
+  typechecked/linted.
+
+- 2026-08-22 (later, same day) — Built phase E. Grilled its two
+  blockers directly with the user rather than guessing (see
+  `PLAN.md`'s "Update 2026-08-22 (later, same day)" for the full
+  reasoning): chose a real Leaflet + `react-leaflet` map over plain
+  lat/lng inputs (new dependency, user-approved; keyless CARTO dark
+  tiles, no billing); collapsed the wizard from 3 steps to 1, since step
+  2 ("Услуги") was always meant to reuse `q-wash-cabinet`'s service CRUD
+  and `q-wash-cabinet` doesn't exist yet.
+
+  `NewPointDrawer` now submits for real via `POST /washing-points`
+  (`createWashingPoint`, new in `q-wash-shared`'s `api/washingPoints.ts`,
+  plus a `WashingPoint` type — see its own `PROGRESS.md`). Fields:
+  Название/Адрес (required), Владелец (real `<select>` from
+  `listOwners()`), a new `LocationPicker` component (click-or-drag on a
+  Dushanbe-centered map, custom gold `divIcon` matching the theme,
+  coordinate readout), Боксы (real number input — dropped the old mock's
+  "5+" chip option since it never mapped to a real integer),
+  Открытие/Закрытие (`<input type="time">`), Статус (defaults to
+  `active`, unlike the connection-request path which defaults to
+  `pending_review` server-side).
+
+  **Verification**: real end-to-end with the user's local `q-wash-api`
+  and `claude-in-chrome` connected — clicked the actual map, submitted,
+  watched the point appear on Мойки immediately, then cross-checked
+  `GET /washing-points` directly and confirmed the persisted
+  `latitude`/`longitude` matched the map's on-screen readout exactly,
+  and `open_time`/`close_time` persisted correctly as 24h `"08:00"`/
+  `"20:00"` (the browser displayed 12h "08:00 AM" — a locale-driven
+  display quirk of the native time input, not a data bug).
+
+  **One real bug found and fixed**: the Боксы/Открытие/Закрытие row
+  overflowed horizontally in-browser (three `flex:1` native
+  number/time inputs exceeding their flex-basis under default
+  `min-width:auto`) — fixed with `minWidth:0` + explicit `width:'100%'`,
+  reverified.
+
+  Remaining scope: phase J (Settings) needs scope grilled with the
+  user before starting; phase K stays deferred. Every other phase
+  (A–I) is now both built and real-backend-verified.
+
+- 2026-08-22 (evening) — Grilled and closed phase J. Checked the API for
+  what "Настройки" could actually contain — no network-wide config exists
+  in `q-wash-api` (everything's a hardcoded backend constant), no
+  staff/admin user-management CRUD, only `PATCH /me` for display name.
+  Asked the user: build a minimal profile screen around that one field,
+  or go smaller. They chose smaller — and while checking this, found a
+  real, unrelated gap: **no logout affordance existed anywhere in the
+  built app.** Fixed exactly that, nothing more: a small ⎋ icon-button in
+  `Sidebar.tsx`'s header, calling `authStore.logout()` (existed in
+  `q-wash-shared` since phase B, just had no caller until now —
+  `q-wash-shared`'s own `PROGRESS.md` doesn't need an update, no new API
+  surface).
+  "Настройки" nav item stays inert — genuinely nothing to build against.
+
+  **Verification**: real end-to-end. Clicked the new logout button,
+  confirmed redirect to `/login`; navigated straight back to `/`
+  afterward (not just trusting the redirect) and confirmed it bounced to
+  `/login` again — tokens actually cleared, not a stale in-memory
+  redirect. No console errors. Logged back in afterward to leave the
+  session usable.
+
+  **Phase J is closed at this scope.** All of A–J are now built and
+  real-backend-verified. Only phase K (Services catalog) remains, and
+  it's deferred per `q-wash-api/docs/PLAN_WEB_APPS.md`'s own "Deferred"
+  note — not scheduled unless per-point service CRUD in a future
+  `q-wash-cabinet` turns out insufficient.

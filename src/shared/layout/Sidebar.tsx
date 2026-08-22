@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { NavLink } from 'react-router-dom';
-import { color, font } from 'q-wash-shared';
+import { useQuery } from '@tanstack/react-query';
+import { authStore, color, font, radius, listConnectionRequests } from 'q-wash-shared';
 import { SIDEBAR_WIDTH } from '../../theme/layout';
 
 interface NavItem {
@@ -10,14 +11,15 @@ interface NavItem {
   to?: string;
 }
 
-// Only "Мойки" has a real screen behind it yet — every other item is drawn
-// but inert until its own design+build phase lands (see q-wash-admin/PLAN.md).
+// "Мойки", "Владельцы", "Записи" and "Аналитика" have real screens — the
+// rest are drawn but inert until their own design+build phase lands (see
+// q-wash-admin/PLAN.md).
 const NAV_ITEMS: NavItem[] = [
   { key: 'points', icon: '▤', label: 'Мойки', to: '/' },
-  { key: 'owners', icon: '☺', label: 'Владельцы' },
+  { key: 'owners', icon: '☺', label: 'Владельцы', to: '/owners' },
   { key: 'services', icon: '≡', label: 'Услуги-справочник' },
-  { key: 'bookings', icon: '◷', label: 'Записи' },
-  { key: 'analytics', icon: '◲', label: 'Аналитика' },
+  { key: 'bookings', icon: '◷', label: 'Записи', to: '/bookings' },
+  { key: 'analytics', icon: '◲', label: 'Аналитика', to: '/analytics' },
   { key: 'settings', icon: '⚙', label: 'Настройки' },
 ];
 
@@ -32,6 +34,14 @@ const navItemBase: CSSProperties = {
 };
 
 export function Sidebar() {
+  // "new"-status requests are what need admin attention, so the badge
+  // counts those (not the "all connection requests" total).
+  const newRequestsQuery = useQuery({
+    queryKey: ['admin', 'connection-requests', 'new'],
+    queryFn: () => listConnectionRequests('new'),
+  });
+  const newCount = newRequestsQuery.data?.items.length ?? 0;
+
   return (
     <div
       style={{
@@ -62,9 +72,27 @@ export function Sidebar() {
         >
           Q
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <div style={{ color: color.textPrimary, fontSize: 14, fontWeight: 700 }}>Queue Admin</div>
           <div style={{ color: color.textFaint, fontSize: 11 }}>Душанбе</div>
+        </div>
+        <div
+          onClick={() => void authStore.logout()}
+          title="Выйти"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: radius.sm,
+            border: `1px solid ${color.borderStrong}`,
+            color: color.textMuted,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontSize: 14,
+          }}
+        >
+          ⎋
         </div>
       </div>
 
@@ -94,6 +122,40 @@ export function Sidebar() {
           ),
         )}
       </div>
+
+      <NavLink
+        to="/connection-requests"
+        style={({ isActive }) => ({
+          marginTop: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '13px 14px',
+          borderRadius: radius.lg,
+          textDecoration: 'none',
+          background: isActive ? '#221d22' : color.panel,
+          border: `1px solid ${isActive ? color.borderStrong : color.border}`,
+        })}
+      >
+        <span style={{ color: color.textSecondary, fontSize: 13, fontWeight: 600 }}>Заявки на подключение</span>
+        <span
+          style={{
+            minWidth: 22,
+            height: 22,
+            padding: '0 6px',
+            borderRadius: radius.pill,
+            background: newCount > 0 ? color.gold : color.muteBg,
+            color: newCount > 0 ? color.goldOnLight : color.mute,
+            fontSize: 12,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {newCount}
+        </span>
+      </NavLink>
     </div>
   );
 }

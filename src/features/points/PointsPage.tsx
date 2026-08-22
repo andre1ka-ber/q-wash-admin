@@ -16,6 +16,7 @@ import {
   type WashingPointStatus,
 } from 'q-wash-shared';
 import { HEADER_HEIGHT } from '../../theme/layout';
+import { pluralRu } from '../../shared/pluralRu';
 import { NewPointDrawer } from './NewPointDrawer';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
@@ -74,7 +75,11 @@ export function PointsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>Мойки</div>
           <div style={{ color: color.textFaint, fontSize: 12 }}>
-            {stats ? `${stats.points_total} точек · ${stats.points_active} активных` : ' '}
+            {stats
+              ? `${stats.points_total} ${pluralRu(stats.points_total, ['точка', 'точки', 'точек'])} · ${
+                  stats.points_active
+                } ${pluralRu(stats.points_active, ['активная', 'активные', 'активных'])}`
+              : ' '}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

@@ -6,6 +6,10 @@ import { authStore, useAuth, color } from 'q-wash-shared';
 import { AdminShell } from './shared/layout/AdminShell';
 import { LoginPage } from './features/auth/LoginPage';
 import { PointsPage } from './features/points/PointsPage';
+import { OwnersPage } from './features/owners/OwnersPage';
+import { ConnectionRequestsPage } from './features/connection-requests/ConnectionRequestsPage';
+import { BookingsPage } from './features/bookings/BookingsPage';
+import { AnalyticsPage } from './features/analytics/AnalyticsPage';
 
 const queryClient = new QueryClient();
 
@@ -43,6 +47,10 @@ function AppRoutes() {
         }
       >
         <Route index element={<PointsPage />} />
+        <Route path="owners" element={<OwnersPage />} />
+        <Route path="connection-requests" element={<ConnectionRequestsPage />} />
+        <Route path="bookings" element={<BookingsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

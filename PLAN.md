@@ -79,6 +79,157 @@ back them) and the sidebar's "Заявки на подключение" counter 
 count needs its own api module, deferred to phase G alongside the actual
 screen — showing a fake number was rejected as worse than not showing one).
 
+**Update 2026-08-22**: built phase F, the Owners screen — not in the mock
+at all, so designed from scratch to match the Мойки screen's own layout
+language (header + search + primary button, `DataTable`). List (`GET
+/owners`), create and edit (`POST`/`PATCH /owners/{id}`) all wired to the
+real endpoints via a new `q-wash-shared` `api/owners.ts` module; clicking a
+row opens the same drawer pre-filled, in edit mode. No owner-deletion
+endpoint exists in `openapi.yaml`, so none is offered. This unblocks half
+of phase E (owner picking) — the wizard's map-placeholder step still needs
+real lat/lng before it can submit.
+
+Same session, also built phases G and H:
+
+- **G — Connection requests**: not in the mock either, same "match the
+  Мойки screen's language" call as phase F. Status tabs (Новые/
+  Одобренные/Отклонённые/Все) over a table; `new` rows get inline
+  Одобрить/Отклонить buttons (`PATCH /connection-requests/{id}`), other
+  statuses just show their pill. "+ Новая заявка" opens a create drawer
+  (`POST /connection-requests`) — the API restricts creation to role
+  admin too ("admin-created for now, no public self-service apply form
+  yet"), so this is the only way one enters the system right now, matching
+  the spec's own framing. Approving auto-creates an `Owner` + a
+  `pending_review` `WashingPoint` with placeholder `0,0` coordinates
+  server-side (see `openapi.yaml`'s `reviewConnectionRequest` description)
+  — nothing else to do on this screen for that, but it's a real gap that
+  the resulting point then needs its coordinates set before it can go
+  live, and `PointsPage` has no edit action yet (its `⋯` column is still
+  inert). Also wired the sidebar's "Заявки на подключение" counter card
+  (dropped in the 2026-08-20 update) to a real `GET
+  /connection-requests?status=new` count — the gap that blocked it is
+  closed now that this screen's api module exists.
+- **H — Bookings**: real gap found while planning this one, worth flagging
+  explicitly: `GET /queue` network-wide (no `washing_point_id`) returns
+  `BoardItem` rows with **no `washing_point_id` field at all**
+  (`boardItemResponse` in `q-wash-api/internal/queue/handler.go` — checked
+  the actual Go code, not just `openapi.yaml`, since the two could've
+  drifted) — so a single "all points" request can't be attributed back to
+  a point. Worked around without touching the backend contract (that needs
+  approval per this app's boundaries doc): fetch each active/paused
+  point's own board via `GET /queue?washing_point_id={id}` in parallel
+  (`useQueries`, one query per point from the already-loaded
+  `admin/washing-points` list) and tag each item with that point's id/name
+  client-side before merging into one sorted table. N+1 requests instead
+  of one, but real data, no backend change, no fake attribution. Rows
+  refetch every 20s (`refetchInterval`) since this is a shift-monitoring
+  screen. Added `PATCH /queue/{id}/status` wiring too (`admin` owns every
+  washing point per `reqctx.AuthUser.OwnsWashingPoint`, confirmed in code)
+  so a row's status can be advanced from the table
+  (очередь→ожидание→мойка→готово removes it from the live board, matching
+  `ListLive`'s active-only filter). No cancel action — `PATCH
+  /queue/{id}/cancel` is owner-only in the actual handler
+  (`manager.CancelBooking` calls `FindOwnedByID`), not broadened to
+  staff/admin yet — `PLAN_WEB_APPS.md` phase 7 ("Worker role") is where
+  that's planned, and phase 7 is still unstarted, so this isn't a
+  docs/code mismatch, just a not-yet-built RBAC change.
+
+Same session, also built phase I:
+
+- **I — Analytics**: checked `internal/admin/handler.go`'s actual `stats`
+  handler — `GET /admin/stats` really is network-wide-only (no per-point
+  breakdown endpoint exists anywhere), so a screen built from it alone
+  would just repeat the Мойки screen's 4 cards. Made it a real
+  differentiator instead of a duplicate: the same `AdminStats` fields
+  (now including `points_active` and two client-computed derived rates —
+  active-point ratio, cancellation rate — both `null`-safe against
+  divide-by-zero) as bigger/more prominent cards, plus a per-point table
+  (boxes/services/status from `GET /admin/washing-points`, already
+  cached) with a live "в очереди сейчас" column reusing the exact
+  per-point `GET /queue?washing_point_id=` fetch (and query key) that
+  `BookingsPage` uses — real current data, not a fabricated "today"
+  breakdown, and if both screens are open the two share one cache entry
+  per point instead of double-polling.
+
+**Update 2026-08-22 (later, same day)**: grilled phase E's two remaining
+blockers with the user directly (own message thread) rather than guessing:
+
+- **Coordinates**: no map library exists anywhere in the platform (checked
+  `q-wash`'s `pubspec.yaml` too — nothing there). Asked plain lat/lng
+  number inputs vs. a real interactive map; user chose the real map —
+  **Leaflet + `react-leaflet`, CARTO's keyless dark-tile basemap**
+  (`https://{s}.basemaps.cartocdn.com/dark_all/...`, attribution shown
+  inline under the map, no API key/billing). New dependency, approved by
+  the user in that same answer. `react-leaflet@5` resolved cleanly against
+  this app's React 19.2 with no peer-dep overrides needed.
+- **Wizard scope**: step 2 ("Услуги") was always going to reuse
+  `q-wash-cabinet`'s service CRUD — but `q-wash-cabinet` isn't built yet
+  (still "Planned", not scaffolded), so there's nothing to reuse and
+  nothing to point step 2 at. Asked whether to collapse to one real step
+  or build a standalone step-2 service form now; user chose **collapse to
+  one step** — dropped the "3-step wizard" framing entirely. `NewPointDrawer`
+  now submits directly via `POST /washing-points` (new
+  `q-wash-shared` `api/washingPoints.ts` — `createWashingPoint`, plus a
+  `WashingPoint` type matching the full response schema). Services get
+  added once a real service-CRUD screen exists somewhere (cabinet app or a
+  dedicated admin screen) — not invented here.
+
+Rebuilt `NewPointDrawer` for real: Название/Адрес (required text),
+Владелец (a real `<select>` sourced from `listOwners()` — phase F's api
+module, now actually consumed), a `LocationPicker` component (click or
+drag-marker on the map, gold `divIcon` matching the theme instead of
+Leaflet's default marker asset, coordinate readout below), Боксы (a real
+number input, replacing the old mock's "2/3/4/5+" chip selector — "5+"
+never mapped to a real integer `boxes_count`, so it was dropped rather
+than kept as decorative-but-wrong), Открытие/Закрытие (`<input
+type="time">`, defaulting to `WashingPointCreate`'s own `08:00`/`20:00`
+defaults), Статус (`active`/`paused`/`pending_review` select, defaulting
+to `active` since this is an admin directly creating a ready point, not
+the connection-request path which defaults to `pending_review`
+server-side).
+
+**Verification**: real end-to-end, not just typechecked — the user ran
+`q-wash-api` locally, `claude-in-chrome` connected, logged in, opened the
+wizard, clicked the real Dushanbe-centered map to place a marker, filled
+the form, submitted. New point appeared on Мойки immediately (cache
+invalidation confirmed), stat cards updated with correct plural forms.
+Cross-checked directly against the API (`GET /washing-points`) that the
+persisted `latitude`/`longitude` matched the map's on-screen coordinate
+readout exactly, and `open_time`/`close_time` persisted as `"08:00"`/
+`"20:00"` despite the native time input displaying as 12-hour "08:00 AM"
+in this browser's locale (a display-only quirk — the underlying value is
+always 24h "HH:MM", not something worth working around given the
+no-i18n-framework decision).
+
+**One real bug found and fixed during this verification pass**: the
+Боксы/Открытие/Закрытие row overflowed horizontally (visible scrollbar)
+— three `flex:1` children with native `<input type="number">`/`type="time"`
+elements whose intrinsic content width exceeds `flex-basis` under the
+default `min-width:auto` flex behavior. Fixed with `minWidth: 0` on each
+column plus explicit `width: '100%'` on the inputs; reverified in-browser,
+no more overflow.
+
+**Update 2026-08-22 (evening)**: grilled phase J's scope. Checked the API
+for what a "Settings" screen could actually contain — no network-wide
+config entity exists anywhere in `q-wash-api` (timezone, business name,
+etc. are all hardcoded backend constants), and there's no staff/admin
+user-management CRUD. The only real capability is `PATCH /me` (display
+name) plus whatever `GET /me` returns. Asked the user whether to build a
+minimal profile screen around that, or something smaller; they picked
+smaller — while investigating this, found a genuine, unrelated gap:
+**there was no logout affordance anywhere in the built app.** User chose
+to fix just that (a Logout action in the sidebar) and leave "Настройки"
+itself inert for now, rather than build a profile screen around one
+editable field. Added a small ⎋ icon-button next to "Queue Admin" in
+`Sidebar.tsx`'s header row, calling `authStore.logout()` (already existed
+in `q-wash-shared`, just had no caller). Verified end-to-end: clicked it,
+redirected to `/login`; navigated straight back to `/` afterward to
+confirm the tokens were actually cleared (not just a stale in-memory
+redirect) — correctly bounced back to `/login`. Phase J closed on that
+scope; a real profile/settings screen can be built later if `q-wash-api`
+ever grows account-editing beyond the display name, or network-wide
+config beyond hardcoded constants — nothing to build against today.
+
 ## App architecture
 
 ```
@@ -139,19 +290,20 @@ q-wash-admin/
       washing-point field; "Владелец" needs a real owner picker, which is
       phase F). Steps 2–3 still blocked on grilling their actual content
       with the user.
-- [ ] **E — Wire the wizard to real creation**: once owner picking (phase
-      F) and step 2/3's actual content are settled, make the wizard submit
-      for real.
-- [ ] **F — Owners screen**: design + build, once phase 2 ships.
-- [ ] **G — Connection requests screen**: design + build, once phase 2
-      ships (this is what the sidebar counter links to).
-- [ ] **H — Bookings screen**: design + build, once the network-wide queue
-      filter ships.
-- [ ] **I — Analytics screen**: design + build, once `GET /admin/stats`
-      (or a richer successor) ships — the 4 stat cards on the Мойки screen
-      are a preview of this, not the real thing.
-- [ ] **J — Settings screen**: scope undefined — grill with the user before
-      starting.
+- [x] **E — Wire the wizard to real creation**: design + build — see
+      "Update 2026-08-22" below (grilled with the user: collapsed to one
+      step, added a real Leaflet map picker).
+- [x] **F — Owners screen**: design + build. No mock exists for this
+      screen (this app owns its own design here, per "Scope for the 5
+      undrawn nav items" above) — see "Update 2026-08-22" below.
+- [x] **G — Connection requests screen**: design + build — see "Update
+      2026-08-22" below. This is what the sidebar counter links to.
+- [x] **H — Bookings screen**: design + build — see "Update 2026-08-22"
+      below.
+- [x] **I — Analytics screen**: design + build — see "Update 2026-08-22"
+      below.
+- [x] **J — Settings**: grilled with the user, scope turned out much
+      smaller than "a screen" — see "Update 2026-08-22 (evening)" below.
 - [ ] **K — Services catalog**: deferred indefinitely per
       `q-wash-api/docs/PLAN_WEB_APPS.md`'s "Deferred" note; revisit only
       if per-point service CRUD in the cabinet app turns out insufficient.
