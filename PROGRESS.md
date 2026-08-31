@@ -341,3 +341,55 @@ See `PLAN.md` for the full plan and build order.
   it's deferred per `q-wash-api/docs/PLAN_WEB_APPS.md`'s own "Deferred"
   note — not scheduled unless per-point service CRUD in a future
   `q-wash-cabinet` turns out insufficient.
+
+- 2026-08-31 — Added test infrastructure (this app had none): Vitest
+  4.1.11 + React Testing Library 16.3.3 + `@testing-library/jest-dom`
+  7.0.1 + `@testing-library/user-event` 14.6.6, jsdom environment
+  (`vitest.config.ts`, `vitest.setup.ts`), `npm test` script.
+
+  **Scope narrowed from the plan after reading the drawer components**:
+  dropped `LocationPicker.tsx` (pure Leaflet click-passthrough, no
+  branching logic worth testing) and dropped the "non-integer boxes
+  count" case for `NewPointDrawer` — its boxes field is
+  `type="number" min={1}` with default `step`, so the browser's own
+  constraint validation already blocks a non-integer/sub-1 value before
+  `onSubmit` ever runs; the component's own `Number.isInteger`/`< 1`
+  check in that handler is dead code, unreachable through this input.
+  Not fixing it (out of scope for a test-only task) — flagging it here.
+  Added `ConnectionRequestDrawer.tsx` in its place (not in the original
+  file list, found while reading step 1's target files): its
+  `boxes_count` field is a plain text input (no native step/min guard),
+  so the same validation check *is* reachable there and worth covering.
+
+  **Tests added** (31 total): `pluralRu` (18 cases across all plural
+  forms), `ConnectionRequestsPage`'s `ReviewActions` (approve/reject
+  error surfaced, non-`ApiError` fallback message, list re-fetch on
+  success), `ConnectionRequestDrawer` and `OwnerDrawer` (validation
+  branches, trim/`undefined`-mapping, create-vs-update branch, `ApiError`
+  message surfaced and drawer stays open on failure), `NewPointDrawer`
+  (location-required branch, happy path, `ApiError` surfaced — mocking
+  `./LocationPicker` to sidestep react-leaflet's jsdom/canvas
+  requirements, verified NOT the unit under test).
+
+  **A real, reproducible Vitest 4.1.11 quirk found and worked around**:
+  resetting a `vi.hoisted` mock inside `beforeEach` (`mockReset`/
+  `mockClear`, either one) — when that same mock later rejects inside a
+  react-query mutation the test also asserts against — makes Vitest
+  misattribute an already-caught rejection (verified via a
+  `window.addEventListener('unhandledrejection', ...)`/
+  `process.on('unhandledRejection', ...)` probe: neither ever fired) as
+  the test's own failure, nondeterministically depending on file/hook
+  timing (bisected: reproduces with `beforeEach` present regardless of
+  what it does to the mock; disappears when the same reset call moves to
+  the first line of each `it` body instead). Worked around by moving
+  every mock reset inline; also set `mutations: { retry: false }`
+  everywhere queries already had it, since mutations default to 3
+  retries outside a server environment and that's worth being explicit
+  about regardless of this quirk. Left a one-line comment at each
+  `describe` explaining why there's no `beforeEach` here.
+
+  **Verification**: `npm test` (31/31 pass, reran 4× including 3 back to
+  back to confirm no flakiness), `npm run lint` (oxlint, clean),
+  `npx tsc -b` (added `@testing-library/jest-dom` to
+  `tsconfig.app.json`'s `types` for matcher typings — clean), `npm run
+  build` (production build still succeeds, `dist/` is gitignored).
