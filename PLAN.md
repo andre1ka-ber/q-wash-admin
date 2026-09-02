@@ -243,20 +243,14 @@ q-wash-admin/
     App.tsx               router root, auth gate
     theme/                 re-exports q-wash-shared's tokens, app-specific
                             layout constants (sidebar width, header height)
-    api/                    q-wash-admin-specific resource calls layered on
-                            q-wash-shared's client (owners, admin stats,
-                            connection requests) — thin, most calls go
-                            straight through the shared client
     features/
       auth/                 login screen
-      points/                the one real screen: stat cards + table +
-                             search, "+ Новая мойка" wizard drawer
-      owners/                 (built once q-wash-api phase 2 lands)
-      services-catalog/       (deferred — see PLAN_WEB_APPS.md "Deferred")
-      bookings/                (built once the network-wide queue filter lands)
-      analytics/               (built once GET /admin/stats lands)
-      settings/                (scope not yet defined — grill before building)
-      connection-requests/    (built once q-wash-api phase 2 lands)
+      points/                stat cards + table + search, "+ Новая мойка"
+                             wizard drawer (NewPointDrawer, LocationPicker)
+      owners/                 owners screen + OwnerDrawer
+      bookings/                network-wide bookings/live-queue table
+      analytics/               stats cards + per-point live table
+      connection-requests/    connection-requests screen + drawer
     shared/
       layout/                Sidebar, Header shell specific to this app's
                              dashboard chrome (not generic enough for
