@@ -393,3 +393,13 @@ See `PLAN.md` for the full plan and build order.
   `npx tsc -b` (added `@testing-library/jest-dom` to
   `tsconfig.app.json`'s `types` for matcher typings — clean), `npm run
   build` (production build still succeeds, `dist/` is gitignored).
+
+- 2026-09-19 — **New palette/font/logo from Claude Design.** Picked up
+  `q-wash-shared`'s new `theme/tokens.ts` values (near-black palette,
+  single Sora font) and its new `LogoMark` component (replaces the old
+  bordered letter badge in the sidebar/header/login screen — no
+  app-specific logic changed, see `q-wash-shared/PROGRESS.md`). Locally:
+  removed the `theme/fonts.css` import from `main.tsx` and added the
+  Google Fonts `<link>`s + an inline-SVG favicon (same logo mark) to
+  `index.html` — self-hosted Manrope/Prata dropped in favor of the CDN.
+  `npm run build` and `npm test` both clean.
