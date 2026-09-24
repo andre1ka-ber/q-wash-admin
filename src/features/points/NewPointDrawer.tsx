@@ -11,6 +11,7 @@ import {
   createWashingPoint,
   GhostButton,
   PrimaryButton,
+  useIsMobile,
   type WashingPointStatus,
 } from 'q-wash-shared';
 import { LocationPicker } from './LocationPicker';
@@ -59,6 +60,7 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
   const [location, setLocation] = useState<LatLngLiteral | null>(null);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   const ownersQuery = useQuery({
     queryKey: ['admin', 'owners'],
@@ -107,22 +109,35 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
         inset: 0,
         background: 'rgba(8,6,8,.62)',
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: isMobile ? 'center' : 'flex-end',
+        alignItems: isMobile ? 'flex-end' : 'stretch',
         zIndex: 30,
       }}
       onClick={onClose}
     >
       <form
         onSubmit={handleSubmit}
-        style={{
-          width: 520,
-          maxWidth: '100%',
-          height: '100%',
-          background: color.panelAlt,
-          borderLeft: `1px solid ${color.borderStrong}`,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        style={
+          isMobile
+            ? {
+                width: '100%',
+                maxHeight: '88%',
+                background: color.panelAlt,
+                borderTop: `1px solid ${color.borderStrong}`,
+                borderRadius: '28px 28px 0 0',
+                display: 'flex',
+                flexDirection: 'column',
+              }
+            : {
+                width: 520,
+                maxWidth: '100%',
+                height: '100%',
+                background: color.panelAlt,
+                borderLeft: `1px solid ${color.borderStrong}`,
+                display: 'flex',
+                flexDirection: 'column',
+              }
+        }
         onClick={(e) => e.stopPropagation()}
       >
         <div

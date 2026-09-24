@@ -403,3 +403,33 @@ See `PLAN.md` for the full plan and build order.
   Google Fonts `<link>`s + an inline-SVG favicon (same logo mark) to
   `index.html` — self-hosted Manrope/Prata dropped in favor of the CDN.
   `npm run build` and `npm test` both clean.
+
+- 2026-09-24 — **Mobile layout (≤768px), matching the Claude Design mock's
+  admin mobile screen.** New `shared/layout/BottomNav.tsx` (4-item bottom
+  nav mirroring `Sidebar.tsx`'s real routes: Мойки/Владельцы/Записи/
+  Аналитика — the inert catalog/settings entries stay sidebar-only).
+  `AdminShell.tsx` swaps `Sidebar` for `BottomNav` below the breakpoint via
+  `q-wash-shared`'s new `useIsMobile()`; desktop path unchanged. `PointsPage.tsx`
+  gained a status filter-chip row (Все/Активна/На паузе/Проверка, client-side
+  over the already-fetched list — new UI, shown on both desktop and mobile)
+  and a mobile card-list view of the same filtered data (desktop keeps
+  `DataTable`); the 3-up mini-stat row uses Боксы/Услуги/Владелец, not
+  "Часы" like the mock — `AdminWashingPoint` has no hours field, and adding
+  one wasn't in scope. `NewPointDrawer.tsx` reflows to a full-width bottom
+  sheet on mobile (same one-step real form/submit handler — still no
+  reintroduction of the mock's 3-step wizard, see the file's 2026-08-22
+  comment). Header row and floating "+ Новая мойка" action button also
+  reflow on mobile.
+
+  **Found and fixed a real dual-React-copy bug surfaced by this change**:
+  `q-wash-shared`'s `useIsMobile` is the first hook actually called from
+  *inside* `q-wash-shared`'s own module scope (existing shared components
+  render but don't call hooks) — this hit `vite.config.ts`'s already-known
+  "two React copies" issue (see its comment) but in `vitest.config.ts`,
+  which was missing the same `resolve.dedupe: ['react','react-dom']`.
+  Added it there too. Also added a `window.matchMedia` polyfill to
+  `vitest.setup.ts` (jsdom doesn't implement it), defaulting to
+  non-matching/desktop so existing tests keep exercising the desktop path.
+
+  **Verification**: `npx tsc -b` clean, `npm test` (31/31 pass), `npx
+  oxlint` clean, `npm run build` clean.
