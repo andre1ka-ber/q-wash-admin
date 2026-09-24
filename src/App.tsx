@@ -6,6 +6,7 @@ import { authStore, useAuth, color } from 'q-wash-shared';
 import { AdminShell } from './shared/layout/AdminShell';
 import { LoginPage } from './features/auth/LoginPage';
 import { PointsPage } from './features/points/PointsPage';
+import { QrCodesPage } from './features/qr-codes/QrCodesPage';
 import { OwnersPage } from './features/owners/OwnersPage';
 import { ConnectionRequestsPage } from './features/connection-requests/ConnectionRequestsPage';
 import { BookingsPage } from './features/bookings/BookingsPage';
@@ -47,6 +48,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<PointsPage />} />
+        <Route path="qr-codes" element={<QrCodesPage />} />
         <Route path="owners" element={<OwnersPage />} />
         <Route path="connection-requests" element={<ConnectionRequestsPage />} />
         <Route path="bookings" element={<BookingsPage />} />

@@ -16,6 +16,7 @@ interface NavItem {
 // q-wash-admin/PLAN.md).
 const NAV_ITEMS: NavItem[] = [
   { key: 'points', icon: '▤', label: 'Мойки', to: '/' },
+  { key: 'qr-codes', icon: '▦', label: 'QR-коды', to: '/qr-codes' },
   { key: 'owners', icon: '☺', label: 'Владельцы', to: '/owners' },
   { key: 'services', icon: '≡', label: 'Услуги-справочник' },
   { key: 'bookings', icon: '◷', label: 'Записи', to: '/bookings' },

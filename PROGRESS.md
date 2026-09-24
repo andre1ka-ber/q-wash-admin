@@ -433,3 +433,42 @@ See `PLAN.md` for the full plan and build order.
 
   **Verification**: `npx tsc -b` clean, `npm test` (31/31 pass), `npx
   oxlint` clean, `npm run build` clean.
+
+- 2026-09-24 (later, same day) — **QR-codes pool page**, per the approved
+  Claude Design mock ("Q Wash QR Codes.dc.html") and the platform's
+  cross-repo `plan.md`, wired to the now-live `q-wash-api` backend and
+  `q-wash-shared`'s new `qrCodes` API module + `QrCodeImage` component.
+  New `src/features/qr-codes/QrCodesPage.tsx`: stat row + filter chips
+  (Все/Свободные/Привязанные/Отключённые) + search, all server-side via
+  `listQrCodes({status, search})` (not client-side filtering like
+  `PointsPage`'s chips — the backend already supports it); a 5-up grid of
+  real, scannable QR thumbnails (`QrCodeImage`, encoding
+  `resolveApiAssetUrl('/api/v1/qr-codes/scan/' + token)` — a real absolute
+  URL a phone camera can resolve, not a bare token); a selected-code detail
+  panel (separate `getQrCode(id)` query, since list items omit `stats`)
+  with assign/unassign/disable actions as `useMutation`s invalidating the
+  `['admin','qr-codes']` query-key prefix (covers list + detail + the
+  unfiltered "all codes" query in one call); a "Сгенерировать партию" modal
+  (count quick-picks + a batch-label text input, since the real endpoint
+  requires one the mock's fake version didn't need); "Печать свободных ·
+  PDF" via `window.print()` + a `@media print` stylesheet, no PDF library
+  (out of scope per `plan.md`) — the print-only block only mounts into the
+  DOM while actually printing (not permanently CSS-hidden), since a
+  duplicate-but-hidden copy of every free code's text would double up for
+  assistive tech and for any DOM query, not just tests. New sidebar item
+  "QR-коды" (`Sidebar.tsx`, right after "Мойки", matching the mock's nav
+  order) + route (`App.tsx`).
+
+  **Deliberate scope calls**: (1) skipped a separate "assign by typed code
+  number" sub-flow — the pool page's existing search box already resolves
+  a typed `QW-XXXX` to its card via the same server-side search, so a
+  second, duplicate input felt like avoidable complexity for the same
+  outcome. (2) No mobile-responsive variant for this page — a brand-new
+  admin desktop feature, not one of the four apps' existing screens the
+  earlier mobile-views pass covered.
+
+  **Verification**: `npx tsc -b` clean, `npx oxlint` clean, `npm test`
+  (36/36, including 5 new `QrCodesPage.test.tsx` cases: grid+stats render,
+  filter-click refetches with the right params, assign flow, mutation
+  error surfaces instead of being swallowed, generate-modal submit), `npm
+  run build` clean.
