@@ -18,11 +18,13 @@ import {
   PrimaryButton,
   GhostButton,
   DangerButton,
+  useIsMobile,
   type QrCode,
   type QrCodeStatus,
   type StatusPillKind,
 } from 'q-wash-shared';
 import { HEADER_HEIGHT } from '../../theme/layout';
+import { BOTTOM_NAV_HEIGHT } from '../../shared/layout/BottomNav';
 
 const EMPTY_ITEMS: QrCode[] = [];
 
@@ -95,6 +97,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 export function QrCodesPage() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [statusFilter, setStatusFilter] = useState<FilterValue>('all');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -210,6 +213,110 @@ export function QrCodesPage() {
     setPrintMode(true);
   }
 
+  function closeDetail() {
+    setSelectedId(null);
+  }
+
+  // Shared between the desktop side panel and the mobile bottom sheet — same
+  // data, same actions, just a different container around it.
+  function renderDetailBody() {
+    if (detailQuery.isLoading) {
+      return <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>;
+    }
+    if (!selected) return null;
+    return (
+      <>
+        <div style={{ padding: 18, borderRadius: radius.xxl, background: '#F6F5EF' }}>
+          <QrCodeImage value={scanUrl(selected.token)} />
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            padding: '14px 16px',
+            borderRadius: radius.lg,
+            background: color.panel,
+            border: `1px solid ${color.borderAlt}`,
+          }}
+        >
+          <DetailRow label="Ссылка" value={scanUrl(selected.token)} />
+          <DetailRow label="Партия" value={selected.batch_label} />
+          <DetailRow label="Мойка" value={selected.washing_point_name ?? '—'} />
+        </div>
+
+        {actionError && <div style={{ color: color.bad, fontSize: 12 }}>{actionError}</div>}
+
+        {selected.status === 'free' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={sectionLabelStyle}>Привязать к мойке без QR</div>
+            {pointsWithoutCode.length === 0 ? (
+              <div style={{ color: color.textFaint, fontSize: 12.5 }}>У всех моек уже есть QR-код</div>
+            ) : (
+              pointsWithoutCode.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => !assignMutation.isPending && assignMutation.mutate(p.id)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    borderRadius: radius.lg,
+                    background: color.panel,
+                    border: `1px solid ${color.borderAlt}`,
+                    cursor: assignMutation.isPending ? 'default' : 'pointer',
+                    opacity: assignMutation.isPending ? 0.6 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ color: color.textPrimaryAlt, fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>
+                    <span style={{ color: color.textFaint, fontSize: 11.5 }}>{p.address}</span>
+                  </div>
+                  <span style={{ color: color.gold, fontSize: 12.5, fontWeight: 700 }}>Привязать</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {selected.status === 'assigned' && (
+          <>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <StatCard label="Сканов за 7 дней" value={selected.stats?.scans_7d ?? '—'} />
+              <StatCard label="Записей" value={selected.stats?.bookings_via_qr ?? '—'} />
+            </div>
+            <GhostButton onClick={() => unassignMutation.mutate()} disabled={unassignMutation.isPending}>
+              Отвязать и вернуть в пул
+            </GhostButton>
+          </>
+        )}
+
+        {selected.status !== 'disabled' && (
+          <DangerButton onClick={() => disableMutation.mutate()} disabled={disableMutation.isPending}>
+            Отключить код (повреждён/утерян)
+          </DangerButton>
+        )}
+
+        {selected.status === 'disabled' && (
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: radius.lg,
+              background: color.badBg,
+              color: color.bad,
+              fontSize: 12.5,
+              lineHeight: 1.5,
+            }}
+          >
+            Код отключён. При сканировании клиент увидит сообщение, что наклейка недействительна.
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {printMode && (
@@ -224,13 +331,15 @@ export function QrCodesPage() {
 
       <div
         style={{
-          height: HEADER_HEIGHT,
-          flex: `0 0 ${HEADER_HEIGHT}px`,
+          minHeight: HEADER_HEIGHT,
+          flex: '0 0 auto',
           borderBottom: `1px solid ${color.borderAlt}`,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
           justifyContent: 'space-between',
-          padding: '0 30px',
+          gap: isMobile ? 12 : 0,
+          padding: isMobile ? '16px 18px' : '0 30px',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -239,12 +348,14 @@ export function QrCodesPage() {
             {stats ? `${stats.total} кодов` : ' '}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <GhostButton onClick={handlePrint} disabled={freeCodesForPrint.length === 0}>
-            Печать свободных · PDF
-          </GhostButton>
-          <PrimaryButton onClick={() => setGenOpen(true)}>Сгенерировать партию</PrimaryButton>
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <GhostButton onClick={handlePrint} disabled={freeCodesForPrint.length === 0}>
+              Печать свободных · PDF
+            </GhostButton>
+            <PrimaryButton onClick={() => setGenOpen(true)}>Сгенерировать партию</PrimaryButton>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
@@ -253,13 +364,13 @@ export function QrCodesPage() {
             flex: 1,
             minWidth: 0,
             overflowY: 'auto',
-            padding: '22px 28px 28px',
+            padding: isMobile ? '18px 18px 96px' : '22px 28px 28px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 18,
+            gap: isMobile ? 14 : 18,
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: isMobile ? 8 : 12 }}>
             <StatCard label="Всего" value={stats?.total ?? '—'} />
             <StatCard label="Свободно" value={stats?.free ?? '—'} />
             <StatCard label="Привязано" value={stats?.assigned ?? '—'} />
@@ -268,12 +379,21 @@ export function QrCodesPage() {
 
           {listQuery.isError && <div style={{ color: color.bad, fontSize: 13 }}>Не удалось загрузить пул кодов</div>}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: isMobile ? 'nowrap' : 'wrap',
+              overflowX: isMobile ? 'auto' : undefined,
+            }}
+          >
             {FILTERS.map((f) => (
               <div
                 key={f.value}
                 onClick={() => setStatusFilter(f.value)}
                 style={{
+                  flex: isMobile ? '0 0 auto' : undefined,
                   padding: '9px 14px',
                   borderRadius: radius.md,
                   fontSize: 13,
@@ -288,26 +408,28 @@ export function QrCodesPage() {
                 {f.label}
               </div>
             ))}
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск по коду QW-…"
-              style={{
-                marginLeft: 'auto',
-                padding: '9px 14px',
-                borderRadius: radius.md,
-                background: color.input,
-                border: `1px solid ${color.borderStrong}`,
-                color: color.textPrimaryAlt,
-                fontSize: 13,
-                width: 220,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
+            {!isMobile && (
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Поиск по коду QW-…"
+                style={{
+                  marginLeft: 'auto',
+                  padding: '9px 14px',
+                  borderRadius: radius.md,
+                  background: color.input,
+                  border: `1px solid ${color.borderStrong}`,
+                  color: color.textPrimaryAlt,
+                  fontSize: 13,
+                  width: 220,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+            )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,minmax(0,1fr))' : 'repeat(5,minmax(0,1fr))', gap: isMobile ? 10 : 12 }}>
             {listQuery.isLoading ? (
               <div style={{ padding: 20, color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
             ) : items.length === 0 ? (
@@ -318,13 +440,13 @@ export function QrCodesPage() {
                   key={c.id}
                   onClick={() => setSelectedId(c.id)}
                   style={{
-                    padding: 12,
-                    borderRadius: radius.xl,
+                    padding: isMobile ? 9 : 12,
+                    borderRadius: isMobile ? radius.xl : radius.xl,
                     background: color.panel,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 10,
+                    gap: isMobile ? 8 : 10,
                     border: `1px solid ${c.id === selectedId ? color.gold : color.borderAlt}`,
                   }}
                 >
@@ -341,144 +463,146 @@ export function QrCodesPage() {
                     <QrCodeImage value={scanUrl(c.token)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-                    <div style={{ color: color.textPrimaryAlt, fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <div style={{ color: color.textPrimaryAlt, fontSize: isMobile ? 12.5 : 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
                       {c.code}
                     </div>
                     <StatusPill kind={STATUS_KIND[c.status]}>{STATUS_LABEL[c.status]}</StatusPill>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: c.washing_point_name ? color.textSecondary : color.textFaint,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {c.washing_point_name ?? (c.status === 'disabled' ? 'не используется' : 'не привязан')}
-                  </div>
+                  {!isMobile && (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: c.washing_point_name ? color.textSecondary : color.textFaint,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {c.washing_point_name ?? (c.status === 'disabled' ? 'не используется' : 'не привязан')}
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
         </div>
 
+        {!isMobile && (
+          <div
+            style={{
+              width: 340,
+              flex: '0 0 340px',
+              borderLeft: `1px solid ${color.borderAlt}`,
+              background: color.panelAlt,
+              overflowY: 'auto',
+              padding: 24,
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 18,
+            }}
+          >
+            {selectedId == null ? (
+              <div style={{ color: color.textFaint, fontSize: 13 }}>Выберите код слева</div>
+            ) : (
+              <>
+                {selected && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: color.textPrimary, fontSize: 22, fontWeight: 700 }}>{selected.code}</div>
+                    <StatusPill kind={STATUS_KIND[selected.status]}>{STATUS_LABEL[selected.status]}</StatusPill>
+                  </div>
+                )}
+                {renderDetailBody()}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {isMobile && (
         <div
+          onClick={() => setGenOpen(true)}
           style={{
-            width: 340,
-            flex: '0 0 340px',
-            borderLeft: `1px solid ${color.borderAlt}`,
-            background: color.panelAlt,
-            overflowY: 'auto',
-            padding: 24,
-            boxSizing: 'border-box',
+            position: 'fixed',
+            right: 18,
+            bottom: BOTTOM_NAV_HEIGHT + 16,
+            zIndex: 14,
+            height: 52,
+            padding: '0 20px',
+            borderRadius: radius.xxl,
+            background: color.gold,
+            color: color.goldOnLight,
             display: 'flex',
-            flexDirection: 'column',
-            gap: 18,
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 10px 30px rgba(0,0,0,.45)',
           }}
         >
-          {selectedId == null ? (
-            <div style={{ color: color.textFaint, fontSize: 13 }}>Выберите код слева</div>
-          ) : detailQuery.isLoading ? (
-            <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
-          ) : selected ? (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ color: color.textPrimary, fontSize: 22, fontWeight: 700 }}>{selected.code}</div>
-                <StatusPill kind={STATUS_KIND[selected.status]}>{STATUS_LABEL[selected.status]}</StatusPill>
-              </div>
+          + Новая партия
+        </div>
+      )}
 
-              <div style={{ padding: 18, borderRadius: radius.xxl, background: '#F6F5EF' }}>
-                <QrCodeImage value={scanUrl(selected.token)} />
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                  padding: '14px 16px',
-                  borderRadius: radius.lg,
-                  background: color.panel,
-                  border: `1px solid ${color.borderAlt}`,
-                }}
-              >
-                <DetailRow label="Ссылка" value={scanUrl(selected.token)} />
-                <DetailRow label="Партия" value={selected.batch_label} />
-                <DetailRow label="Мойка" value={selected.washing_point_name ?? '—'} />
-              </div>
-
-              {actionError && <div style={{ color: color.bad, fontSize: 12 }}>{actionError}</div>}
-
-              {selected.status === 'free' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={sectionLabelStyle}>Привязать к мойке без QR</div>
-                  {pointsWithoutCode.length === 0 ? (
-                    <div style={{ color: color.textFaint, fontSize: 12.5 }}>У всех моек уже есть QR-код</div>
-                  ) : (
-                    pointsWithoutCode.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => !assignMutation.isPending && assignMutation.mutate(p.id)}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '12px 14px',
-                          borderRadius: radius.lg,
-                          background: color.panel,
-                          border: `1px solid ${color.borderAlt}`,
-                          cursor: assignMutation.isPending ? 'default' : 'pointer',
-                          opacity: assignMutation.isPending ? 0.6 : 1,
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ color: color.textPrimaryAlt, fontSize: 13.5, fontWeight: 600 }}>{p.name}</span>
-                          <span style={{ color: color.textFaint, fontSize: 11.5 }}>{p.address}</span>
-                        </div>
-                        <span style={{ color: color.gold, fontSize: 12.5, fontWeight: 700 }}>Привязать</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {selected.status === 'assigned' && (
+      {isMobile && selectedId != null && (
+        <div
+          onClick={closeDetail}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(8,8,7,.6)',
+            zIndex: 30,
+            display: 'flex',
+            alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxHeight: '88%',
+              background: '#171714',
+              borderTop: `1px solid ${color.borderStrong}`,
+              borderRadius: '28px 28px 0 0',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+              <div style={{ width: 40, height: 5, borderRadius: 3, background: color.borderStrong }} />
+            </div>
+            <div style={{ padding: '8px 20px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              {selected && (
                 <>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <StatCard label="Сканов за 7 дней" value={selected.stats?.scans_7d ?? '—'} />
-                    <StatCard label="Записей" value={selected.stats?.bookings_via_qr ?? '—'} />
-                  </div>
-                  <GhostButton onClick={() => unassignMutation.mutate()} disabled={unassignMutation.isPending}>
-                    Отвязать и вернуть в пул
-                  </GhostButton>
+                  <div style={{ color: color.textPrimary, fontSize: 21, fontWeight: 700 }}>{selected.code}</div>
+                  <StatusPill kind={STATUS_KIND[selected.status]}>{STATUS_LABEL[selected.status]}</StatusPill>
                 </>
               )}
-
-              {selected.status !== 'disabled' && (
-                <DangerButton onClick={() => disableMutation.mutate()} disabled={disableMutation.isPending}>
-                  Отключить код (повреждён/утерян)
-                </DangerButton>
-              )}
-
-              {selected.status === 'disabled' && (
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: radius.lg,
-                    background: color.badBg,
-                    color: color.bad,
-                    fontSize: 12.5,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Код отключён. При сканировании клиент увидит сообщение, что наклейка недействительна.
-                </div>
-              )}
-            </>
-          ) : null}
+              <div
+                onClick={closeDetail}
+                style={{
+                  marginLeft: 'auto',
+                  width: 34,
+                  height: 34,
+                  borderRadius: radius.sm,
+                  border: `1px solid ${color.borderStrong}`,
+                  color: color.textFaint,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 30px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {renderDetailBody()}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {genOpen && (
         <div
@@ -488,16 +612,33 @@ export function QrCodesPage() {
             inset: 0,
             background: 'rgba(8,8,7,.66)',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'center',
+            alignItems: isMobile ? 'flex-end' : 'center',
             zIndex: 30,
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ width: 480, borderRadius: 22, background: '#171714', border: `1px solid ${color.borderStrong}`, display: 'flex', flexDirection: 'column' }}
+            style={
+              isMobile
+                ? {
+                    width: '100%',
+                    maxHeight: '88%',
+                    borderRadius: '28px 28px 0 0',
+                    background: '#171714',
+                    borderTop: `1px solid ${color.borderStrong}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }
+                : { width: 480, borderRadius: 22, background: '#171714', border: `1px solid ${color.borderStrong}`, display: 'flex', flexDirection: 'column' }
+            }
           >
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${color.borderAlt}` }}>
+            {isMobile && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+                <div style={{ width: 40, height: 5, borderRadius: 3, background: color.borderStrong }} />
+              </div>
+            )}
+            <div style={{ padding: isMobile ? '4px 24px 16px' : '20px 24px', borderBottom: `1px solid ${color.borderAlt}` }}>
               <div style={{ color: color.textPrimary, fontSize: 18, fontWeight: 700 }}>Новая партия QR-кодов</div>
             </div>
             <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -544,7 +685,7 @@ export function QrCodesPage() {
                 />
               </div>
             </div>
-            <div style={{ padding: '16px 24px 22px', borderTop: `1px solid ${color.borderAlt}`, display: 'flex', gap: 10 }}>
+            <div style={{ padding: isMobile ? '16px 24px 30px' : '16px 24px 22px', borderTop: `1px solid ${color.borderAlt}`, display: 'flex', gap: 10 }}>
               <GhostButton onClick={() => setGenOpen(false)} style={{ flex: 1 }}>
                 Отмена
               </GhostButton>

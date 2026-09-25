@@ -612,3 +612,40 @@ See `PLAN.md` for the full plan and build order.
   tsc --noEmit`, `npx vitest run` (36/36) clean. Verified for real in the
   browser: clicking the icon opens the dialog, "Отмена" closes it with no
   logout, "Выйти" actually logs out and lands on `/login`.
+
+- 2026-09-25 (same day) — `QrCodesPage.tsx` had zero mobile handling
+  (fixed 340px detail sidebar pinned beside the grid, 5-col code grid,
+  fixed-width search box, fixed-width generate dialog) even though every
+  other admin screen (`PointsPage.tsx` and its drawers) already had one.
+  Re-read the design mock's own now-mobile-adjusted
+  `Q Wash QR Codes.dc.html` (via the `claude_design` MCP,
+  `f6bd39c5-b19d-4809-8dd5-e05719c4f6e9`) for the exact target: on mobile
+  the header buttons and search box drop, the stat grid stays 4-up, the
+  code grid goes to 3 columns, tapping a code opens a bottom sheet (not a
+  side panel) for its detail/assign/disable actions, and "Сгенерировать
+  партию" moves from a header button to a FAB — all patterns already
+  established elsewhere in this app (`EditPointDrawer`'s mobile bottom
+  sheet, `PointsPage`'s FAB). Rewrote `QrCodesPage.tsx` to match: added
+  `useIsMobile`, factored the detail panel's body into
+  `renderDetailBody()` so the desktop side panel and the new mobile bottom
+  sheet share the same JSX instead of duplicating it, added the FAB, and
+  made the generate-batch dialog become a bottom sheet on mobile too
+  (kept its Cancel button there rather than the mock's single-CTA version
+  — generating a real batch of QR codes against the live DB is worth a
+  cancel path). Print-PDF stays desktop-only, matching the mock (it has
+  no mobile affordance for it either).
+
+  `npx tsc --noEmit`, `npx vitest run` (5/5) clean. Browser-verified for
+  real: the actual window/viewport in this sandbox wouldn't resize below
+  desktop width (`resize_window` reported success but `window.innerWidth`
+  stayed 1920), so mobile was forced by monkey-patching
+  `window.matchMedia` to always match the mobile query and triggering a
+  re-render — the same class of workaround used for the favicon fix
+  earlier, flagging it here for the same reason. With that: confirmed the
+  header collapses to just the title (no button row, no search box), the
+  code grid renders 3-up, the FAB appears, tapping a code opens the
+  bottom sheet with the QR/detail rows/assign-or-disable actions, and the
+  generate dialog opens as a bottom sheet with working Cancel. Because
+  the viewport itself stayed wide, this proves the code paths render
+  correctly but not the exact spacing/wrapping at true phone width — not
+  separately confirmed on a real narrow viewport.
