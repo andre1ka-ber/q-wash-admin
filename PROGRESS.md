@@ -605,3 +605,10 @@ See `PLAN.md` for the full plan and build order.
   renders as the dark square with gray/gray/gold bars, matching `LogoMark`.
   Same change applied identically in `q-wash-cabinet`, `q-wash-worker`,
   `q-wash-display`.
+
+- 2026-09-25 (same day) — Logout in `Sidebar.tsx` now goes through the new
+  `q-wash-shared` `ConfirmDialog` ("Выйти из аккаунта?") instead of
+  calling `authStore.logout()` straight from the icon's `onClick`. `npx
+  tsc --noEmit`, `npx vitest run` (36/36) clean. Verified for real in the
+  browser: clicking the icon opens the dialog, "Отмена" closes it with no
+  logout, "Выйти" actually logs out and lands on `/login`.
