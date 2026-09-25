@@ -49,12 +49,15 @@ const FILTERS: { value: FilterValue; label: string }[] = [
 
 const GEN_COUNTS = [10, 25, 50, 100];
 
-// The scan endpoint lives under /api/v1, outside q-wash-shared's own
-// resolved base — resolveApiAssetUrl is the same helper photos already use
-// to turn a server-relative path into an absolute, origin-qualified URL, so
-// a real phone camera (not just this app) can resolve what's encoded here.
+// /q/{token} is a short, root-level alias for /api/v1/qr-codes/scan/{token}
+// (same handler either way) — a shorter encoded string means a
+// lower-version, visually cleaner QR code, especially at the pool grid's
+// small thumbnail size. resolveApiAssetUrl is the same helper photos
+// already use to turn a server-relative path into an absolute,
+// origin-qualified URL, so a real phone camera (not just this app) can
+// resolve what's encoded here.
 function scanUrl(token: string): string {
-  return resolveApiAssetUrl(`/api/v1/qr-codes/scan/${token}`);
+  return resolveApiAssetUrl(`/q/${token}`);
 }
 
 function defaultBatchLabel(): string {
@@ -316,7 +319,7 @@ export function QrCodesPage() {
                   onClick={() => setSelectedId(c.id)}
                   style={{
                     padding: 12,
-                    borderRadius: radius.xxl,
+                    borderRadius: radius.xl,
                     background: color.panel,
                     cursor: 'pointer',
                     display: 'flex',
@@ -327,14 +330,15 @@ export function QrCodesPage() {
                 >
                   <div
                     style={{
-                      padding: 8,
+                      padding: 10,
                       borderRadius: radius.md,
                       background: c.status === 'disabled' ? '#C9C7BF' : '#F6F5EF',
                       opacity: c.status === 'disabled' ? 0.55 : 1,
-                      display: 'flex',
+                      aspectRatio: '1',
+                      boxSizing: 'border-box',
                     }}
                   >
-                    <QrCodeImage value={scanUrl(c.token)} size={96} />
+                    <QrCodeImage value={scanUrl(c.token)} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
                     <div style={{ color: color.textPrimaryAlt, fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
@@ -384,8 +388,8 @@ export function QrCodesPage() {
                 <StatusPill kind={STATUS_KIND[selected.status]}>{STATUS_LABEL[selected.status]}</StatusPill>
               </div>
 
-              <div style={{ padding: 18, borderRadius: radius.xxl, background: '#F6F5EF', display: 'flex' }}>
-                <QrCodeImage value={scanUrl(selected.token)} size={280} />
+              <div style={{ padding: 18, borderRadius: radius.xxl, background: '#F6F5EF' }}>
+                <QrCodeImage value={scanUrl(selected.token)} />
               </div>
 
               <div

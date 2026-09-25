@@ -472,3 +472,104 @@ See `PLAN.md` for the full plan and build order.
   filter-click refetches with the right params, assign flow, mutation
   error surfaces instead of being swallowed, generate-modal submit), `npm
   run build` clean.
+
+- 2026-09-25 — **Fixed a real visual regression**: the pool grid's small QR
+  thumbnails looked noticeably denser/muddier than the design mock's clean
+  pattern — the mock's fake generator used a fixed, small 25×25 grid, but
+  the real encoded value was the full `/api/v1/qr-codes/scan/{token}` URL,
+  long enough to need a much higher QR version. `q-wash-api` added a short
+  root-level alias, `GET /q/{token}` (same handler, see its own
+  `PROGRESS.md`), matching the design mock's own intended sticker-URL
+  shape; `scanUrl()` here now builds against that instead. `npx tsc -b`,
+  `npx vitest run` (36/36, no test needed changing — nothing asserted the
+  literal URL string), `npx oxlint` all clean.
+
+- 2026-09-25 (same day) — **Fixed a real layout bug reported on the QR-codes
+  page**: with 25 codes the grid overflowed a full viewport, and the whole
+  shell — including `Sidebar` — scrolled away with the page instead of
+  staying pinned while only the page's own content area scrolled. Root
+  cause was in `AdminShell.tsx`, not this page: its root container used
+  `minHeight: '100vh'`, which lets the box grow past the viewport on tall
+  content, even though every page here (`PointsPage`, `OwnersPage`,
+  `BookingsPage`, `AnalyticsPage`, `ConnectionRequestsPage`, and now this
+  one) already assumes a bounded-height ancestor via its own
+  `flex:1; minHeight:0; overflowY:'auto'` content region — confirmed by
+  grepping all of them before making the change, so this wasn't a
+  QR-codes-only patch. Changed to `height: '100vh'`. Verified in a real
+  browser (not just `vitest`, since jsdom doesn't compute box layout):
+  ran the API server + this app's dev server against local Postgres,
+  logged in, generated a real 25-code batch, and confirmed via screenshots
+  that scrolling the grid to the bottom now leaves `Sidebar` and the
+  header exactly where they were — before the fix, both had visibly
+  scrolled out of frame.
+
+- 2026-09-25 (same day) — **Two more real bugs from the same QR-image work,
+  both caught by the user testing locally, not by my own earlier check**:
+  the detail panel's big QR (`QrCodesPage.tsx`) overflowed its white card
+  instead of being centered inside it — the previous fix had pinned it to
+  a hardcoded `size={280}`, which didn't actually fit the panel's real
+  padded width (~256px). See `q-wash-shared`'s own `PROGRESS.md` for the
+  root cause and the component-level fix (`QrCodeImage` now fills 100% of
+  its wrapper by default, matching the design mock's own `<svg
+  width="100%">` markup, instead of a hand-picked pixel number that had
+  to be kept in sync with padding math elsewhere). Dropped `size={280}`
+  here to use that default.
+
+  First attempt at that same fix also switched the pool grid's thumbnail
+  (`size={96}`) to the same 100%-fill approach — that broke a second way:
+  a percentage-width child inside this grid's `repeat(5, minmax(0,1fr))`
+  columns confused the grid's own column-sizing, and the whole page
+  overflowed horizontally (caught this one myself, in the browser, before
+  it reached the user again). Kept `size={96}` as an explicit fixed pixel
+  box there instead — `QrCodeImage` now documents fixed-size as the right
+  choice specifically for a grid/flex item sharing space with siblings,
+  vs. the 100%-fill default for a wrapper that's already its own
+  standalone box.
+
+  `npx tsc -b`, `npx vitest run` (36/36), `npx oxlint` clean. Verified for
+  real in a browser both ways: the grid no longer overflows (confirmed no
+  horizontal scrollbar), and the detail panel's QR is contained and
+  centered — zoomed into both to check the finder-pattern squares are
+  true squares in both places.
+
+- 2026-09-25 (same day) — **User reported the grid still didn't match the
+  design after the above**, and this time I went back to the actual mock
+  source (`Q Wash QR Codes.dc.html`, saved locally) instead of reasoning
+  from a screenshot. The mock's own pool-card markup:
+  `cardStyle` (the grid item — `padding:12; border-radius:16;
+  background:#191917; display:flex; flex-direction:column; gap:10`) wraps
+  a `qrBoxStyle` div (`padding:10; border-radius:12; aspect-ratio:1;
+  background:#F6F5EF`) with **no width set on the QR box at all** — it's a
+  block-level flex child of a `flex-direction:column` parent, so it gets
+  `align-items:stretch`'s default full-width for free, and `aspect-ratio:1`
+  derives the height from that. The grid item is the *card*, not the QR
+  box; the two are never the same element. My previous "fixed `size={96}`
+  because percentage-width broke the grid" conclusion was chasing the
+  wrong culprit — I had never actually re-checked the mock's own DOM
+  nesting for this specific card, only for the detail panel.
+
+  Fixed `QrCodesPage.tsx`'s grid card to match this nesting exactly:
+  `borderRadius: radius.xl` (was `radius.xxl` — mock is 16px, `xl` is the
+  matching token, not `xxl`'s 18px), QR-box padding `10` (was `8`,
+  matching mock), `aspectRatio: '1'` + `boxSizing: 'border-box'` on that
+  box, and dropped `size={96}` from `QrCodeImage` entirely (default
+  100%-fill mode now does the job, relying on the parent's flex-stretch
+  exactly like the mock does).
+
+  `npx tsc --noEmit` and `npx vitest run` (36/36) clean. Verified for real
+  in the browser again at the actual dev-server viewport (not the mock's
+  fixed 1440px canvas): no horizontal scrollbar, grid cards and the detail
+  panel both zoomed in to confirm true squares, and card padding/radius
+  now visually match the design screenshot the user sent, not just an
+  aspect-ratio-correct rectangle.
+
+- 2026-09-25 (same day) — Restyled scrollbars app-wide (`index.css`):
+  thin (10px), transparent track, rounded dark thumb (`#33322C`,
+  `#4E4E47` on hover) instead of the browser default. The design mock
+  itself hides scrollbars entirely (`width:0`), but that's a static-canvas
+  artifact, not something to replicate in a real scrollable app — kept a
+  visible, themed one instead. Applies globally (`*`), not just the
+  QR-codes grid, since every page in this app uses `overflowY:'auto'`
+  panels the same way. Verified in the browser: thumb renders slim and
+  dark instead of the default chunky gray. `npx vitest run` still 36/36
+  (CSS-only change).

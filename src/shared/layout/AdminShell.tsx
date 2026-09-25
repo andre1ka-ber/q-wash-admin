@@ -7,7 +7,13 @@ export function AdminShell() {
   const isMobile = useIsMobile();
 
   return (
-    <div style={{ minHeight: '100vh', background: color.surface, display: 'flex' }}>
+    // height (not minHeight): every page's own content column already
+    // assumes a bounded-height ancestor (flex:1; minHeight:0; overflowY:
+    // auto internally) — minHeight let this box grow past the viewport on
+    // a tall page, so the whole shell (including Sidebar) scrolled away
+    // with the page instead of Sidebar staying put and only the page's
+    // own content area scrolling.
+    <div style={{ height: '100vh', background: color.surface, display: 'flex' }}>
       {!isMobile && <Sidebar />}
       <div
         style={{
