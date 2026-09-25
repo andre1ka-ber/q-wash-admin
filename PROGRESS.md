@@ -596,3 +596,12 @@ See `PLAN.md` for the full plan and build order.
   its real lat/lng, boxes, hours, status) came back prefilled correctly,
   changed the name, saved, and watched the list row update to the new name
   — then reverted it back the same way to leave seed data untouched.
+
+- 2026-09-25 (same day) — Updated the favicon (`index.html`'s inline
+  `data:image/svg+xml` `<link rel="icon">`) to match the `LogoMark` fix
+  (see `q-wash-shared`'s `PROGRESS.md`): dark bordered square instead of
+  gold, gray/gray/gold bars instead of dark-on-gold. Verified by injecting
+  the live page's own `link.href` into an `<img>` in a real browser tab —
+  renders as the dark square with gray/gray/gold bars, matching `LogoMark`.
+  Same change applied identically in `q-wash-cabinet`, `q-wash-worker`,
+  `q-wash-display`.
