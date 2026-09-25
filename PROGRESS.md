@@ -573,3 +573,26 @@ See `PLAN.md` for the full plan and build order.
   panels the same way. Verified in the browser: thumb renders slim and
   dark instead of the default chunky gray. `npx vitest run` still 36/36
   (CSS-only change).
+
+- 2026-09-25 (same day) — **Мойки was view-only**: rows had no way to edit
+  a washing point after creation (only `NewPointDrawer`'s create flow
+  existed; the row's `⋯` was a static, unwired glyph). The backend already
+  supported this (`PATCH /washing-points/{id}`, `updateWashingPoint` in
+  `q-wash-shared`; `OwnsWashingPoint` returns `true` unconditionally for
+  `admin` — no backend change needed), it just wasn't wired up here.
+
+  Added `EditPointDrawer.tsx`, modeled on `NewPointDrawer`: fetches the
+  full record via `getWashingPoint(id)` (the list-page's `AdminWashingPoint`
+  summary type lacks lat/lng/hours), prefills the same field set, and
+  submits via `updateWashingPoint`. Wired both the desktop table row and
+  the mobile card in `PointsPage.tsx` to open it via `onClick`. Needed a
+  small addition to `q-wash-shared`'s `DataTableRow` (an optional `onClick`
+  prop — see its own `PROGRESS.md`) since the shared table component didn't
+  expose one.
+
+  `npx tsc --noEmit`, `npx vitest run` (36/36) clean. Verified for real in
+  the browser, not just by reading the code: opened the drawer on the one
+  seeded point, confirmed every field (name, owner, address, map pin at
+  its real lat/lng, boxes, hours, status) came back prefilled correctly,
+  changed the name, saved, and watched the list row update to the new name
+  — then reverted it back the same way to leave seed data untouched.

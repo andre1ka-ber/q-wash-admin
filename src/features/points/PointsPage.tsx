@@ -19,6 +19,7 @@ import {
 import { HEADER_HEIGHT } from '../../theme/layout';
 import { pluralRu } from '../../shared/pluralRu';
 import { NewPointDrawer } from './NewPointDrawer';
+import { EditPointDrawer } from './EditPointDrawer';
 import { BOTTOM_NAV_HEIGHT } from '../../shared/layout/BottomNav';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
@@ -50,6 +51,7 @@ export function PointsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   const pointsQuery = useQuery({
@@ -180,6 +182,7 @@ export function PointsPage() {
               filteredPoints.map((p) => (
                 <div
                   key={p.id}
+                  onClick={() => setEditingId(p.id)}
                   style={{
                     padding: 14,
                     borderRadius: radius.xxl,
@@ -188,6 +191,7 @@ export function PointsPage() {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 12,
+                    cursor: 'pointer',
                   }}
                 >
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -268,7 +272,12 @@ export function PointsPage() {
               <div style={{ padding: 20, color: color.textFaint, fontSize: 13 }}>Ничего не найдено</div>
             ) : (
               filteredPoints.map((p, i) => (
-                <DataTableRow key={p.id} gridTemplateColumns={TABLE_COLUMNS} isLast={i === filteredPoints.length - 1}>
+                <DataTableRow
+                  key={p.id}
+                  gridTemplateColumns={TABLE_COLUMNS}
+                  isLast={i === filteredPoints.length - 1}
+                  onClick={() => setEditingId(p.id)}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                     <div
                       style={{
@@ -346,6 +355,7 @@ export function PointsPage() {
       )}
 
       {wizardOpen && <NewPointDrawer onClose={() => setWizardOpen(false)} />}
+      {editingId && <EditPointDrawer pointId={editingId} onClose={() => setEditingId(null)} />}
     </>
   );
 }
