@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { authStore, color, radius, listConnectionRequests, LogoMark, ConfirmDialog } from 'q-wash-shared';
+import { authStore, color, radius, listConnectionRequests, ConfirmDialog } from 'q-wash-shared';
 import { SIDEBAR_WIDTH } from '../../theme/layout';
 
 interface NavItem {
@@ -60,7 +60,6 @@ export function Sidebar() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '0 8px' }}>
-          <LogoMark size={34} />
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             <div style={{ color: color.textPrimary, fontSize: 14, fontWeight: 700 }}>Queue Admin</div>
             <div style={{ color: color.textFaint, fontSize: 11 }}>Душанбе</div>
