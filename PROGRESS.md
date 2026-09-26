@@ -651,3 +651,5 @@ See `PLAN.md` for the full plan and build order.
   separately confirmed on a real narrow viewport.
 
 - 2026-09-26 — Test review: added `BookingsPage.test.tsx` (merged per-point boards sorted by start, status labels/next actions, advance calls, per-row error, partial failure), `OwnersPage.test.tsx` (plural count, search, empty/error, drawer) and `LoginPage.test.tsx` — 55 tests total. Gotcha: `beforeEach(() => mock.mockResolvedValue(...))` returns the mock, which vitest then runs as a teardown — use braces.
+
+- 2026-09-26 — More tests: added `PointsPage.test.tsx` (stats, status filter + search, drawers open, error, mobile), `EditPointDrawer.test.tsx` (loads the point, single trimmed update, no owner, API error, load error, cancel) and `AnalyticsPage.test.tsx` (active share / cancellation rate, no divide-by-zero, per-point queue length, failed queue) — 71 tests total.
