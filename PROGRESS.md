@@ -649,3 +649,5 @@ See `PLAN.md` for the full plan and build order.
   the viewport itself stayed wide, this proves the code paths render
   correctly but not the exact spacing/wrapping at true phone width — not
   separately confirmed on a real narrow viewport.
+
+- 2026-09-26 — Test review: added `BookingsPage.test.tsx` (merged per-point boards sorted by start, status labels/next actions, advance calls, per-row error, partial failure), `OwnersPage.test.tsx` (plural count, search, empty/error, drawer) and `LoginPage.test.tsx` — 55 tests total. Gotcha: `beforeEach(() => mock.mockResolvedValue(...))` returns the mock, which vitest then runs as a teardown — use braces.
