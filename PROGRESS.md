@@ -653,3 +653,15 @@ See `PLAN.md` for the full plan and build order.
 - 2026-09-26 — Test review: added `BookingsPage.test.tsx` (merged per-point boards sorted by start, status labels/next actions, advance calls, per-row error, partial failure), `OwnersPage.test.tsx` (plural count, search, empty/error, drawer) and `LoginPage.test.tsx` — 55 tests total. Gotcha: `beforeEach(() => mock.mockResolvedValue(...))` returns the mock, which vitest then runs as a teardown — use braces.
 
 - 2026-09-26 — More tests: added `PointsPage.test.tsx` (stats, status filter + search, drawers open, error, mobile), `EditPointDrawer.test.tsx` (loads the point, single trimmed update, no owner, API error, load error, cancel) and `AnalyticsPage.test.tsx` (active share / cancellation rate, no divide-by-zero, per-point queue length, failed queue) — 71 tests total.
+
+- 2026-09-28 — **Sentry error monitoring** (see platform-level `plan-sentry.md`).
+  `src/main.tsx`: `initSentry({ dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: 'production' })` called only when `import.meta.env.PROD`, and
+  `<App />` wrapped in `q-wash-shared`'s `ErrorBoundary` — both from the new
+  `q-wash-shared` monitoring module, no new direct dependency here (pulled in
+  transitively via the existing `file:../q-wash-shared` dependency's own
+  `node_modules`). Added `VITE_SENTRY_DSN` to `vite-env.d.ts`'s
+  `ImportMetaEnv` and a blank placeholder to `.env.example`. No DSN yet — a
+  no-op until one exists, and even then only ever sent from a production
+  build. `npx tsc --noEmit`, `npx vite build`, `npx vitest run` (71/71) all
+  clean.
