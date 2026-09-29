@@ -15,10 +15,10 @@ import {
   GhostButton,
   PrimaryButton,
   useIsMobile,
+  CredentialsRevealModal,
   type WashingPointStatus,
 } from 'q-wash-shared';
 import { LocationPicker } from './LocationPicker';
-import { CredentialsRevealModal } from '../../shared/CredentialsRevealModal';
 
 export interface EditPointDrawerProps {
   pointId: string;

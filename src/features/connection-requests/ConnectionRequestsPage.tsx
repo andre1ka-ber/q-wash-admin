@@ -12,6 +12,7 @@ import {
   StatusPill,
   PrimaryButton,
   DangerButton,
+  CredentialsRevealModal,
   type ConnectionRequest,
   type ConnectionRequestStatus,
   type PointAccounts,
@@ -20,7 +21,6 @@ import {
 import { HEADER_HEIGHT } from '../../theme/layout';
 import { pluralRu } from '../../shared/pluralRu';
 import { ConnectionRequestDrawer } from './ConnectionRequestDrawer';
-import { CredentialsRevealModal } from '../../shared/CredentialsRevealModal';
 
 const EMPTY_REQUESTS: ConnectionRequest[] = [];
 
