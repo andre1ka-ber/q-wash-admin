@@ -665,3 +665,14 @@ See `PLAN.md` for the full plan and build order.
   no-op until one exists, and even then only ever sent from a production
   build. `npx tsc --noEmit`, `npx vite build`, `npx vitest run` (71/71) all
   clean.
+
+- 2026-09-29 — **Points list/table now shows the real cover photo** instead
+  of a static striped placeholder that was never wired to any data —
+  `q-wash-api`'s `GET /admin/washing-points` never returned a photo field
+  at all (same root cause as the q-wash mobile app's blank cover image,
+  fixed there the same day). New `PointThumb` in `PointsPage.tsx` renders
+  `AdminWashingPoint.cover_url` (new field, `q-wash-shared`) through
+  `resolveApiAssetUrl`, falling back to the striped placeholder when the
+  point has no photo yet or the image fails to load (`onError`). Used in
+  both the mobile card and the desktop table row. `npx tsc --noEmit` and
+  `npx vitest run` (71/71) clean.

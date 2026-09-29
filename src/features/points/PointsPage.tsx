@@ -5,6 +5,7 @@ import {
   radius,
   listAdminWashingPoints,
   getAdminStats,
+  resolveApiAssetUrl,
   StatCard,
   StatusPill,
   DataTable,
@@ -23,6 +24,38 @@ import { EditPointDrawer } from './EditPointDrawer';
 import { BOTTOM_NAV_HEIGHT } from '../../shared/layout/BottomNav';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
+
+const PLACEHOLDER_BG = 'repeating-linear-gradient(135deg,#292229 0 7px,#221c22 7px 14px)';
+
+/** Cover-photo thumbnail, falling back to the striped placeholder when the
+ * point has no photo yet or the image fails to load. coverUrl is the
+ * relative "/uploads/..." URL from the API; resolveApiAssetUrl makes it
+ * absolute (see q-wash-shared's api/client.ts). */
+function PointThumb({ coverUrl, size, radius: r }: { coverUrl: string | null | undefined; size: number; radius: number }) {
+  const [failed, setFailed] = useState(false);
+  const src = coverUrl && !failed ? resolveApiAssetUrl(coverUrl) : null;
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        flex: `0 0 ${size}px`,
+        borderRadius: r,
+        overflow: 'hidden',
+        background: PLACEHOLDER_BG,
+      }}
+    >
+      {src && (
+        <img
+          src={src}
+          alt=""
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      )}
+    </div>
+  );
+}
 
 const STATUS_LABEL: Record<WashingPointStatus, string> = {
   active: 'Активна',
@@ -195,15 +228,7 @@ export function PointsPage() {
                   }}
                 >
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        flex: '0 0 44px',
-                        borderRadius: 12,
-                        background: 'repeating-linear-gradient(135deg,#292229 0 7px,#221c22 7px 14px)',
-                      }}
-                    />
+                    <PointThumb coverUrl={p.cover_url} size={44} radius={12} />
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div
                         style={{
@@ -279,15 +304,7 @@ export function PointsPage() {
                   onClick={() => setEditingId(p.id)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        flex: '0 0 38px',
-                        borderRadius: 11,
-                        background: 'repeating-linear-gradient(135deg,#292229 0 7px,#221c22 7px 14px)',
-                      }}
-                    />
+                    <PointThumb coverUrl={p.cover_url} size={38} radius={11} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
                       <div
                         style={{
