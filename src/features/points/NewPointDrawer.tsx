@@ -12,9 +12,11 @@ import {
   GhostButton,
   PrimaryButton,
   useIsMobile,
+  type PointAccounts,
   type WashingPointStatus,
 } from 'q-wash-shared';
 import { LocationPicker } from './LocationPicker';
+import { CredentialsRevealModal } from '../../shared/CredentialsRevealModal';
 
 export interface NewPointDrawerProps {
   onClose: () => void;
@@ -59,6 +61,7 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
   const [status, setStatus] = useState<WashingPointStatus>('active');
   const [location, setLocation] = useState<LatLngLiteral | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<PointAccounts | null>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -80,10 +83,13 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
         close_time: closeTime,
         status,
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'washing-points'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
-      onClose();
+      // Show the one-time credentials reveal before closing — closing
+      // immediately (the old behavior) would lose the only chance to see
+      // the generated passwords.
+      setCredentials(created.credentials);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : 'Не удалось выполнить запрос'),
   });
@@ -103,6 +109,7 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
   }
 
   return (
+    <>
     <div
       style={{
         position: 'fixed',
@@ -278,5 +285,16 @@ export function NewPointDrawer({ onClose }: NewPointDrawerProps) {
         </div>
       </form>
     </div>
+    {credentials && (
+      <CredentialsRevealModal
+        title="Мойка создана"
+        items={[
+          { label: 'Персонал (кабинет)', ...credentials.staff },
+          { label: 'Работник (очередь)', ...credentials.worker },
+        ]}
+        onClose={onClose}
+      />
+    )}
+    </>
   );
 }

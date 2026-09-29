@@ -14,11 +14,13 @@ import {
   DangerButton,
   type ConnectionRequest,
   type ConnectionRequestStatus,
+  type PointAccounts,
   type StatusPillKind,
 } from 'q-wash-shared';
 import { HEADER_HEIGHT } from '../../theme/layout';
 import { pluralRu } from '../../shared/pluralRu';
 import { ConnectionRequestDrawer } from './ConnectionRequestDrawer';
+import { CredentialsRevealModal } from '../../shared/CredentialsRevealModal';
 
 const EMPTY_REQUESTS: ConnectionRequest[] = [];
 
@@ -45,13 +47,17 @@ const TABLE_COLUMNS = '2fr 1.3fr 1.8fr 0.6fr 1fr 1.8fr';
 
 function ReviewActions({ request }: { request: ConnectionRequest }) {
   const [error, setError] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<PointAccounts | null>(null);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (status: 'approved' | 'rejected') => reviewConnectionRequest(request.id, { status }),
-    onSuccess: () => {
+    onSuccess: (reviewed) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'washing-points'] });
+      // Only present on approval — a new washing point (and its
+      // staff/worker logins) is only ever created then, not on rejection.
+      if (reviewed.credentials) setCredentials(reviewed.credentials);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : 'Не удалось выполнить запрос'),
   });
@@ -61,27 +67,39 @@ function ReviewActions({ request }: { request: ConnectionRequest }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <PrimaryButton
-          type="button"
-          disabled={mutation.isPending}
-          onClick={() => mutation.mutate('approved')}
-          style={{ padding: '7px 12px', fontSize: 12 }}
-        >
-          Одобрить
-        </PrimaryButton>
-        <DangerButton
-          type="button"
-          disabled={mutation.isPending}
-          onClick={() => mutation.mutate('rejected')}
-          style={{ padding: '7px 12px', fontSize: 12 }}
-        >
-          Отклонить
-        </DangerButton>
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <PrimaryButton
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate('approved')}
+            style={{ padding: '7px 12px', fontSize: 12 }}
+          >
+            Одобрить
+          </PrimaryButton>
+          <DangerButton
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate('rejected')}
+            style={{ padding: '7px 12px', fontSize: 12 }}
+          >
+            Отклонить
+          </DangerButton>
+        </div>
+        {error && <div style={{ color: color.bad, fontSize: 11 }}>{error}</div>}
       </div>
-      {error && <div style={{ color: color.bad, fontSize: 11 }}>{error}</div>}
-    </div>
+      {credentials && (
+        <CredentialsRevealModal
+          title="Мойка подключена"
+          items={[
+            { label: 'Персонал (кабинет)', ...credentials.staff },
+            { label: 'Работник (очередь)', ...credentials.worker },
+          ]}
+          onClose={() => setCredentials(null)}
+        />
+      )}
+    </>
   );
 }
 

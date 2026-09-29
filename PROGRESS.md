@@ -676,3 +676,23 @@ See `PLAN.md` for the full plan and build order.
   point has no photo yet or the image fails to load (`onError`). Used in
   both the mobile card and the desktop table row. `npx tsc --noEmit` and
   `npx vitest run` (71/71) clean.
+
+- 2026-09-29 — **Surfaced washing point staff/worker credentials** at
+  every place a point gets created (see `q-wash-api`'s `PROGRESS.md` for
+  the full feature). New shared `src/shared/CredentialsRevealModal.tsx` —
+  a one-time, no-backdrop-dismiss reveal (username+password, copy
+  buttons, explicit "Я сохранил(а) данные" acknowledgement) since the
+  password is never retrievable again after this. Wired into:
+  `NewPointDrawer.tsx` (shows after a successful create, `onClose` no
+  longer fires immediately — only after acknowledging); `EditPointDrawer.tsx`
+  (new "Учётные данные" section: both usernames via
+  `getWashingPointCredentials`, a "Сбросить пароль" button per role
+  calling `resetWashingPointCredentials`, reveal modal on success);
+  `ConnectionRequestsPage.tsx`'s `ReviewActions` (approving now also
+  surfaces the new point's credentials, rejecting doesn't). Updated
+  `NewPointDrawer.test.tsx`'s submit test (now asserts the reveal +
+  gated close) and added 1 new `EditPointDrawer.test.tsx` case (usernames
+  render, reset reveals the new password without closing the drawer).
+  `npx tsc --noEmit` and `npx vitest run` (72/72) clean.
+
+- 2026-09-29 (same day) — Ran `/design-critique` on `CredentialsRevealModal.tsx`; fixed the one Critical finding: the copy-to-clipboard control was a bare `<div onClick>` (not keyboard-reachable, no accessible name). Now a real `<button>` with `aria-label="Копировать: <field>"` and `aria-live="polite"` on the "Скопировано" state text so screen readers announce the copy confirmation, plus a padded tap target (was bare 12px text). `npx tsc --noEmit` and `npx vitest run` (72/72) clean.

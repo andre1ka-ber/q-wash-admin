@@ -10,12 +10,15 @@ import {
   listOwners,
   getWashingPoint,
   updateWashingPoint,
+  getWashingPointCredentials,
+  resetWashingPointCredentials,
   GhostButton,
   PrimaryButton,
   useIsMobile,
   type WashingPointStatus,
 } from 'q-wash-shared';
 import { LocationPicker } from './LocationPicker';
+import { CredentialsRevealModal } from '../../shared/CredentialsRevealModal';
 
 export interface EditPointDrawerProps {
   pointId: string;
@@ -46,6 +49,40 @@ const labelStyle = {
   textTransform: 'uppercase' as const,
 };
 
+function CredentialUsernameRow({
+  label,
+  username,
+  onReset,
+  resetting,
+}: {
+  label: string;
+  username: string;
+  onReset: () => void;
+  resetting: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: radius.md,
+        background: color.input,
+        border: `1px solid ${color.borderStrong}`,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ color: color.textFaint, fontSize: 11 }}>{label}</div>
+        <div style={{ color: color.textPrimaryAlt, fontSize: 13, fontFamily: 'monospace' }}>{username}</div>
+      </div>
+      <GhostButton type="button" onClick={onReset} disabled={resetting} style={{ padding: '8px 12px', fontSize: 12 }}>
+        {resetting ? 'Сбрасываем…' : 'Сбросить пароль'}
+      </GhostButton>
+    </div>
+  );
+}
+
 // Same field set/layout as NewPointDrawer (the creation wizard) — this is
 // its edit counterpart, PATCHing the same washing point via
 // updateWashingPoint instead of creating one.
@@ -59,12 +96,26 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
   const [status, setStatus] = useState<WashingPointStatus>('active');
   const [location, setLocation] = useState<LatLngLiteral | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState<{ label: string; username: string; password: string } | null>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
   const pointQuery = useQuery({
     queryKey: ['admin', 'washing-point', pointId],
     queryFn: () => getWashingPoint(pointId),
+  });
+
+  const credentialsQuery = useQuery({
+    queryKey: ['admin', 'washing-point', pointId, 'credentials'],
+    queryFn: () => getWashingPointCredentials(pointId),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: (role: 'staff' | 'worker') => resetWashingPointCredentials(pointId, role),
+    onSuccess: (credential, role) => {
+      setResetPassword({ label: role === 'staff' ? 'Персонал (кабинет)' : 'Работник (очередь)', ...credential });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'Не удалось сбросить пароль'),
   });
 
   const ownersQuery = useQuery({
@@ -122,6 +173,7 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
   }
 
   return (
+    <>
     <div
       style={{
         position: 'fixed',
@@ -287,6 +339,30 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
               </select>
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={labelStyle}>Учётные данные</div>
+              {credentialsQuery.isLoading ? (
+                <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
+              ) : credentialsQuery.isError ? (
+                <div style={{ color: color.bad, fontSize: 13 }}>Не удалось загрузить учётные данные</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <CredentialUsernameRow
+                    label="Персонал (кабинет)"
+                    username={credentialsQuery.data?.staff.username ?? ''}
+                    onReset={() => resetMutation.mutate('staff')}
+                    resetting={resetMutation.isPending && resetMutation.variables === 'staff'}
+                  />
+                  <CredentialUsernameRow
+                    label="Работник (очередь)"
+                    username={credentialsQuery.data?.worker.username ?? ''}
+                    onReset={() => resetMutation.mutate('worker')}
+                    resetting={resetMutation.isPending && resetMutation.variables === 'worker'}
+                  />
+                </div>
+              )}
+            </div>
+
             {error && <div style={{ color: color.bad, fontSize: 13 }}>{error}</div>}
           </div>
         )}
@@ -305,5 +381,13 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
         </div>
       </form>
     </div>
+    {resetPassword && (
+      <CredentialsRevealModal
+        title="Пароль сброшен"
+        items={[resetPassword]}
+        onClose={() => setResetPassword(null)}
+      />
+    )}
+    </>
   );
 }

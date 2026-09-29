@@ -8,6 +8,8 @@ import { EditPointDrawer } from './EditPointDrawer';
 const getWashingPoint = vi.fn();
 const updateWashingPoint = vi.fn();
 const listOwners = vi.fn();
+const getWashingPointCredentials = vi.fn();
+const resetWashingPointCredentials = vi.fn();
 
 vi.mock('q-wash-shared', async (importOriginal) => {
   const actual = await importOriginal<typeof import('q-wash-shared')>();
@@ -16,6 +18,8 @@ vi.mock('q-wash-shared', async (importOriginal) => {
     getWashingPoint: (...a: unknown[]) => getWashingPoint(...a),
     updateWashingPoint: (...a: unknown[]) => updateWashingPoint(...a),
     listOwners: (...a: unknown[]) => listOwners(...a),
+    getWashingPointCredentials: (...a: unknown[]) => getWashingPointCredentials(...a),
+    resetWashingPointCredentials: (...a: unknown[]) => resetWashingPointCredentials(...a),
   };
 });
 
@@ -59,6 +63,10 @@ function stubApi() {
   getWashingPoint.mockResolvedValue(POINT);
   listOwners.mockResolvedValue({ items: [{ id: 'o1', name: 'ООО Titan' }, { id: 'o2', name: 'Pegas Auto' }] });
   updateWashingPoint.mockResolvedValue(POINT);
+  getWashingPointCredentials.mockResolvedValue({
+    staff: { username: 'pegasus' },
+    worker: { username: 'pegasus-worker' },
+  });
 }
 
 afterEach(() => {
@@ -143,6 +151,27 @@ describe('EditPointDrawer', () => {
     renderDrawer();
     expect(await screen.findByText('Не удалось загрузить данные мойки')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeDisabled();
+  });
+
+  it('shows staff/worker usernames and reveals a new password on reset, without closing', async () => {
+    stubApi();
+    resetWashingPointCredentials.mockResolvedValue({ username: 'pegasus', password: 'nEwPass789' });
+    const user = userEvent.setup();
+    const { onClose } = renderDrawer();
+    await screen.findByDisplayValue('Pegasus');
+
+    expect(await screen.findByText('pegasus')).toBeInTheDocument();
+    expect(screen.getByText('pegasus-worker')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Сбросить пароль' })[0]!);
+
+    await waitFor(() => expect(resetWashingPointCredentials).toHaveBeenCalledWith('p1', 'staff'));
+    expect(await screen.findByText('nEwPass789')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Я сохранил(а) данные' }));
+    expect(screen.queryByText('nEwPass789')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('cancel closes without saving', async () => {

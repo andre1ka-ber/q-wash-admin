@@ -67,11 +67,16 @@ describe('NewPointDrawer submit validation', () => {
     expect(createWashingPoint).not.toHaveBeenCalled();
   });
 
-  it('submits with the picked coordinates once the location check passes', async () => {
+  it('submits with the picked coordinates and reveals the new credentials once, not closing until acknowledged', async () => {
     createWashingPoint.mockReset();
     listOwners.mockReset();
     listOwners.mockResolvedValue({ items: [] });
-    createWashingPoint.mockResolvedValue({});
+    createWashingPoint.mockResolvedValue({
+      credentials: {
+        staff: { username: 'titan-wash', password: 'sTaFfPass123' },
+        worker: { username: 'titan-wash-worker', password: 'wOrKerPass456' },
+      },
+    });
     const user = userEvent.setup();
     const { onClose } = renderDrawer();
 
@@ -83,7 +88,15 @@ describe('NewPointDrawer submit validation', () => {
     expect(createWashingPoint).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Titan Wash', address: 'Rudaki 1', latitude: 38.5598, longitude: 68.787 }),
     );
-    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+
+    expect(await screen.findByText('titan-wash')).toBeInTheDocument();
+    expect(screen.getByText('sTaFfPass123')).toBeInTheDocument();
+    expect(screen.getByText('titan-wash-worker')).toBeInTheDocument();
+    expect(screen.getByText('wOrKerPass456')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Я сохранил(а) данные' }));
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('shows the ApiError message on a failed create and does not close', async () => {
