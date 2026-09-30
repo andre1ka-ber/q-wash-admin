@@ -698,3 +698,18 @@ See `PLAN.md` for the full plan and build order.
 - 2026-09-29 (same day) — Ran `/design-critique` on `CredentialsRevealModal.tsx`; fixed the one Critical finding: the copy-to-clipboard control was a bare `<div onClick>` (not keyboard-reachable, no accessible name). Now a real `<button>` with `aria-label="Копировать: <field>"` and `aria-live="polite"` on the "Скопировано" state text so screen readers announce the copy confirmation, plus a padded tap target (was bare 12px text). `npx tsc --noEmit` and `npx vitest run` (72/72) clean.
 
 - 2026-09-29 (same day) — `CredentialsRevealModal` moved out to `q-wash-shared` (`q-wash-cabinet` needs the same one-time reveal for its own point's "Безопасность" tab, and cross-app sharing only happens through that package) — the three call sites here (`NewPointDrawer`, `EditPointDrawer`, `ConnectionRequestsPage`) now import it from `q-wash-shared` instead of a local file; no behavior change. `npx tsc --noEmit` and `npx vitest run` (72/72) clean.
+
+- 2026-09-30 — **Installable PWA**: new dependency `vite-plugin-pwa`
+  (`npm audit fix` cleared the one unrelated transitive `undici`
+  advisory). Real icons (192/512 `any`, 512 `maskable`, 180 apple-touch)
+  generated pixel-faithful to the app's existing favicon mark, in new
+  `public/`. `vite.config.ts`: `VitePWA({ registerType: 'autoUpdate',
+  manifest: {...} })` — no `runtimeCaching` entries, confirmed by reading
+  the built `dist/sw.js` (exactly one `registerRoute` call, Workbox's own
+  navigation-shell fallback, nothing touching `/api/*`). Installable is
+  the whole scope here, not offline — admin data must never be served
+  stale. `index.html` gained an `apple-touch-icon` link + a `theme-color`
+  meta. Verified via `vite build && vite preview` + Playwright: manifest
+  fetches valid with the right icons/`lang`, service worker registers, no
+  console errors. `npx tsc --noEmit` and `npx vitest run` (72/72)
+  unaffected.
