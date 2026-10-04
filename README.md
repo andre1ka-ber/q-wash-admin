@@ -30,6 +30,11 @@ npm run build    # tsc -b && vite build
 Log in with an `admin`-role account (username + password via
 `POST /auth/login` — see `q-wash-api/README.md` for seeded dev accounts).
 
+The point-location map needs a CARTO Basemaps API key: copy `.env.example` to
+`.env.local` and set `VITE_CARTO_API_KEY`. With no key the map shows
+"Карта недоступна" instead of tiles. The key is bundled into the browser build,
+so restrict it by domain in the CARTO dashboard.
+
 ## Testing
 
 ```bash

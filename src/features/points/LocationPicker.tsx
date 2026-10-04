@@ -5,10 +5,17 @@ import 'leaflet/dist/leaflet.css';
 import { color, radius } from 'q-wash-shared';
 
 // No lat/lng picker exists anywhere in the platform yet (checked q-wash's
-// pubspec.yaml too) — Leaflet + CARTO's keyless dark tiles, approved with
-// the user rather than plain lat/lng number inputs, see
-// q-wash-admin/PLAN.md's "Update 2026-08-22" wizard-scope entry.
+// pubspec.yaml too) — Leaflet + CARTO's dark tiles, approved with the user
+// rather than plain lat/lng number inputs, see q-wash-admin/PLAN.md's
+// "Update 2026-08-22" wizard-scope entry. CARTO now requires a Basemaps API
+// key (VITE_CARTO_API_KEY); with no key set the map is replaced by a notice
+// instead of silently rendering blank tiles.
 const DUSHANBE_CENTER: LatLngLiteral = { lat: 38.5598, lng: 68.787 };
+
+// Bounds the zoom range so a user can't zoom into levels that pull many extra
+// tiles each (CARTO's free tier is metered per tile request).
+const MIN_ZOOM = 10;
+const MAX_ZOOM = 18;
 
 const markerIcon = L.divIcon({
   className: '',
@@ -32,6 +39,27 @@ function ClickHandler({ onChange }: { onChange: (v: LatLngLiteral) => void }) {
 }
 
 export function LocationPicker({ value, onChange }: LocationPickerProps) {
+  const cartoKey = import.meta.env.VITE_CARTO_API_KEY;
+  if (!cartoKey) {
+    return (
+      <div
+        style={{
+          height: 180,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: radius.lg,
+          border: `1px solid ${color.borderStrong}`,
+          background: color.input,
+          color: color.textFaint,
+          fontSize: 13,
+        }}
+      >
+        Карта недоступна
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div
@@ -45,10 +73,16 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
         <MapContainer
           center={value ?? DUSHANBE_CENTER}
           zoom={value ? 15 : 12}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
           style={{ height: '100%', width: '100%', background: color.input }}
           attributionControl={false}
         >
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+          <TileLayer
+            url={`https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${encodeURIComponent(cartoKey)}`}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+          />
           <ClickHandler onChange={onChange} />
           {value && (
             <Marker

@@ -713,3 +713,14 @@ See `PLAN.md` for the full plan and build order.
   fetches valid with the right icons/`lang`, service worker registers, no
   console errors. `npx tsc --noEmit` and `npx vitest run` (72/72)
   unaffected.
+
+- 2026-10-04 — **CARTO Basemaps key for the point-location map**: CARTO's
+  keyless `dark_all` tiles stopped rendering. `LocationPicker.tsx` now loads
+  `basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=...` from
+  `VITE_CARTO_API_KEY` (typed in `vite-env.d.ts`, blank placeholder in
+  `.env.example`), clamps zoom to 10-18 to limit metered tile requests, and
+  with no key renders a "Карта недоступна" notice instead of blank tiles. New
+  `LocationPicker.test.tsx` covers the no-key path. No new dependency.
+  `npx tsc -b` and `npx vitest run` (73/73) clean. Not yet verified against
+  a real key — the `dark_all` path under the keyed `rastertiles/` URL is
+  inferred from CARTO's `voyager` template.
