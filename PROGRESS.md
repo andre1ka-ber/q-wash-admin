@@ -733,3 +733,9 @@ See `PLAN.md` for the full plan and build order.
   "Доступ к кабинету" row (credentials stay in the edit drawer), and the
   "Часы" tile (the list has no hours; "Владелец" stays). `tsc -b` and
   `vitest run` (74/74) clean.
+- 2026-10-26 — PWA updates: the service worker is now registered from
+  `main.tsx` via `startPwaUpdates` (q-wash-shared) instead of the plugin's
+  injected script (`injectRegister: false`, `skipWaiting`/`clientsClaim` set
+  explicitly). The page reloads when a new version takes over, and re-checks
+  hourly and on return to the app — previously an open tab or a resumed phone
+  app kept running the old build until a hard refresh. `vite build` verified.
