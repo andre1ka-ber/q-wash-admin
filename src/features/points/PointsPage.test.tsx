@@ -130,4 +130,19 @@ describe('PointsPage', () => {
     await user.click(screen.getByText('+ Новая мойка'));
     expect(screen.getByText('new-point-drawer')).toBeInTheDocument();
   });
+
+  it('mobile: shows the app title, the page title with counts, and the search field in the page body', async () => {
+    stubApi();
+    mobile = true;
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('Pegasus');
+
+    expect(screen.getByText('Q Wash · Админ')).toBeInTheDocument();
+    expect(screen.getAllByText('Мойки')).toHaveLength(1);
+    const search = screen.getByPlaceholderText('Поиск по названию или адресу');
+    await user.type(search, 'Aqua');
+    expect(screen.queryByText('Pegasus')).not.toBeInTheDocument();
+    expect(screen.getByText('AquaLine')).toBeInTheDocument();
+  });
 });

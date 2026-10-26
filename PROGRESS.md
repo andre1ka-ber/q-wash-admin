@@ -724,3 +724,12 @@ See `PLAN.md` for the full plan and build order.
   `npx tsc -b` and `npx vitest run` (73/73) clean. Not yet verified against
   a real key — the `dark_all` path under the keyed `rastertiles/` URL is
   inferred from CARTO's `voyager` template.
+- 2026-10-26 — Mobile Мойки screen re-aligned with the refreshed "Car Wash Web
+  Apps Mobile" design: no bordered page header on mobile; instead a "Q Wash ·
+  Админ" row, the "Мойки" title with counts, a 2×2 stat grid, an icon search
+  field, status chips and the point cards (bottom nav and floating
+  "+ Новая мойка" were already in place). Desktop header unchanged. Not in the
+  design's data / left out: stat deltas, the "N заявки" count, the per-card
+  "Доступ к кабинету" row (credentials stay in the edit drawer), and the
+  "Часы" tile (the list has no hours; "Владелец" stays). `tsc -b` and
+  `vitest run` (74/74) clean.

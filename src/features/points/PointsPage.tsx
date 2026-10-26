@@ -108,19 +108,24 @@ export function PointsPage() {
 
   const stats = statsQuery.data;
 
+  const subtitle = stats
+    ? `${stats.points_total} ${pluralRu(stats.points_total, ['точка', 'точки', 'точек'])} · ${
+        stats.points_active
+      } ${pluralRu(stats.points_active, ['активная', 'активные', 'активных'])}`
+    : ' ';
+
   return (
     <>
+      {!isMobile && (
       <div
         style={{
           minHeight: HEADER_HEIGHT,
           flex: `0 0 auto`,
           borderBottom: `1px solid ${color.borderAlt}`,
           display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          gap: isMobile ? 12 : 0,
-          padding: isMobile ? '16px 18px' : '0 30px',
+          padding: '0 30px',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -145,28 +150,41 @@ export function PointsPage() {
               border: `1px solid ${color.borderStrong}`,
               color: color.textPrimaryAlt,
               fontSize: 13,
-              width: isMobile ? '100%' : 250,
-              flex: isMobile ? 1 : undefined,
+              width: 250,
               outline: 'none',
               fontFamily: 'inherit',
             }}
           />
-          {!isMobile && <PrimaryButton onClick={() => setWizardOpen(true)}>+ Новая мойка</PrimaryButton>}
+          <PrimaryButton onClick={() => setWizardOpen(true)}>+ Новая мойка</PrimaryButton>
         </div>
       </div>
+      )}
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '24px 30px 30px',
+          padding: isMobile ? '18px 18px 30px' : '24px 30px 30px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 22,
+          gap: isMobile ? 16 : 22,
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
+        {isMobile && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ color: color.textPrimary, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Q Wash · Админ</div>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: color.borderAlt }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ color: color.textPrimary, fontSize: 24, fontWeight: 600, letterSpacing: '-.03em' }}>Мойки</div>
+              <div style={{ color: color.textTertiary, fontSize: 13 }}>{subtitle}</div>
+            </div>
+          </>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14 }}>
           <StatCard label="Точек в сети" value={stats?.points_total ?? '—'} />
           <StatCard label="Записей сегодня" value={stats?.bookings_today ?? '—'} />
           <StatCard
@@ -176,11 +194,46 @@ export function PointsPage() {
           <StatCard label="Отмены" value={stats?.canceled_today ?? '—'} />
         </div>
 
+        {isMobile && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '12px 14px',
+              borderRadius: 13,
+              background: color.input,
+              border: `1px solid ${color.borderStrong}`,
+              color: color.textTertiary,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m20 20-4.2-4.2" />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по названию или адресу"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: color.textPrimaryAlt,
+                fontSize: 13,
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+        )}
+
         {pointsQuery.isError && (
           <div style={{ color: color.bad, fontSize: 13 }}>Не удалось загрузить список моек</div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', flex: '0 0 auto' }}>
           {STATUS_FILTERS.map((f) => (
             <div
               key={f.value}
