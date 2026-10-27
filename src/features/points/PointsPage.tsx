@@ -21,7 +21,6 @@ import { HEADER_HEIGHT } from '../../theme/layout';
 import { pluralRu } from '../../shared/pluralRu';
 import { NewPointDrawer } from './NewPointDrawer';
 import { EditPointDrawer } from './EditPointDrawer';
-import { BOTTOM_NAV_HEIGHT } from '../../shared/layout/BottomNav';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
 
@@ -171,18 +170,7 @@ export function PointsPage() {
           gap: isMobile ? 16 : 22,
         }}
       >
-        {isMobile && (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ color: color.textPrimary, fontSize: 15, fontWeight: 600, letterSpacing: '-.02em' }}>Q Wash · Админ</div>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: color.borderAlt }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <div style={{ color: color.textPrimary, fontSize: 24, fontWeight: 600, letterSpacing: '-.03em' }}>Мойки</div>
-              <div style={{ color: color.textTertiary, fontSize: 13 }}>{subtitle}</div>
-            </div>
-          </>
-        )}
+        {isMobile && <div style={{ color: color.textTertiary, fontSize: 13 }}>{subtitle}</div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14 }}>
           <StatCard label="Точек в сети" value={stats?.points_total ?? '—'} />
@@ -404,7 +392,7 @@ export function PointsPage() {
           style={{
             position: 'fixed',
             right: 18,
-            bottom: BOTTOM_NAV_HEIGHT + 16,
+            bottom: 30,
             zIndex: 14,
             height: 52,
             padding: '0 20px',

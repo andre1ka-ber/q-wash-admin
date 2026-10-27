@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { color, useIsMobile } from 'q-wash-shared';
 import { Sidebar } from './Sidebar';
-import { BottomNav, BOTTOM_NAV_HEIGHT } from './BottomNav';
+import { MobileHeader } from './MobileHeader';
 
 export function AdminShell() {
   const isMobile = useIsMobile();
@@ -15,18 +15,10 @@ export function AdminShell() {
     // own content area scrolling.
     <div style={{ height: '100vh', background: color.surface, display: 'flex' }}>
       {!isMobile && <Sidebar />}
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          paddingBottom: isMobile ? BOTTOM_NAV_HEIGHT : 0,
-        }}
-      >
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        {isMobile && <MobileHeader />}
         <Outlet />
       </div>
-      {isMobile && <BottomNav />}
     </div>
   );
 }

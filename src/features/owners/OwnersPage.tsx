@@ -4,21 +4,28 @@ import {
   color,
   radius,
   listOwners,
-  DataTable,
-  DataTableHeaderRow,
-  DataTableRow,
+  listAdminWashingPoints,
+  useIsMobile,
   PrimaryButton,
   type Owner,
 } from 'q-wash-shared';
-import { HEADER_HEIGHT } from '../../theme/layout';
+import { PageHeader } from '../../shared/layout/PageHeader';
 import { pluralRu } from '../../shared/pluralRu';
 import { OwnerDrawer } from './OwnerDrawer';
 
 const EMPTY_OWNERS: Owner[] = [];
 
-const TABLE_COLUMNS = '2fr 1.6fr 1.4fr 1.8fr';
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
 export function OwnersPage() {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [drawerOwner, setDrawerOwner] = useState<Owner | 'new' | null>(null);
 
@@ -26,6 +33,20 @@ export function OwnersPage() {
     queryKey: ['admin', 'owners'],
     queryFn: () => listOwners(),
   });
+
+  const pointsQuery = useQuery({
+    queryKey: ['admin', 'washing-points'],
+    queryFn: () => listAdminWashingPoints(),
+  });
+
+  const pointNamesByOwner = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const p of pointsQuery.data?.items ?? []) {
+      if (!p.owner_id) continue;
+      map.set(p.owner_id, [...(map.get(p.owner_id) ?? []), p.name]);
+    }
+    return map;
+  }, [pointsQuery.data]);
 
   const owners = ownersQuery.data?.items ?? EMPTY_OWNERS;
   const filteredOwners = useMemo(() => {
@@ -41,43 +62,32 @@ export function OwnersPage() {
 
   return (
     <>
-      <div
-        style={{
-          height: HEADER_HEIGHT,
-          flex: `0 0 ${HEADER_HEIGHT}px`,
-          borderBottom: `1px solid ${color.borderAlt}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 30px',
-        }}
+      <PageHeader
+        title="Владельцы"
+        subtitle={
+          ownersQuery.data
+            ? `${owners.length} ${pluralRu(owners.length, ['владелец', 'владельца', 'владельцев'])}`
+            : undefined
+        }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>Владельцы</div>
-          <div style={{ color: color.textFaint, fontSize: 12 }}>
-            {ownersQuery.data ? `${owners.length} ${pluralRu(owners.length, ['владелец', 'владельца', 'владельцев'])}` : ' '}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени или телефону"
-            style={{
-              padding: '10px 14px',
-              borderRadius: radius.md,
-              background: color.input,
-              border: `1px solid ${color.borderStrong}`,
-              color: color.textPrimaryAlt,
-              fontSize: 13,
-              width: 250,
-              outline: 'none',
-              fontFamily: 'inherit',
-            }}
-          />
-          <PrimaryButton onClick={() => setDrawerOwner('new')}>+ Новый владелец</PrimaryButton>
-        </div>
-      </div>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Поиск по имени или телефону"
+          style={{
+            padding: '10px 14px',
+            borderRadius: radius.md,
+            background: color.input,
+            border: `1px solid ${color.borderStrong}`,
+            color: color.textPrimaryAlt,
+            fontSize: 13,
+            ...(isMobile ? { flex: 1, minWidth: 0 } : { width: 250 }),
+            outline: 'none',
+            fontFamily: 'inherit',
+          }}
+        />
+        <PrimaryButton onClick={() => setDrawerOwner('new')}>+ Новый владелец</PrimaryButton>
+      </PageHeader>
 
       <div
         style={{
@@ -94,35 +104,86 @@ export function OwnersPage() {
           <div style={{ color: color.bad, fontSize: 13 }}>Не удалось загрузить список владельцев</div>
         )}
 
-        <DataTable>
-          <DataTableHeaderRow
-            gridTemplateColumns={TABLE_COLUMNS}
-            columns={['Название', 'Контактное лицо', 'Телефон', 'Email']}
-          />
-          {ownersQuery.isLoading ? (
-            <div style={{ padding: 20, color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
-          ) : filteredOwners.length === 0 ? (
-            <div style={{ padding: 20, color: color.textFaint, fontSize: 13 }}>Ничего не найдено</div>
-          ) : (
-            filteredOwners.map((o, i) => (
-              <DataTableRow
+        {ownersQuery.isLoading ? (
+          <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
+        ) : filteredOwners.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: color.textFaint, fontSize: 13 }}>Ничего не найдено</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+            {filteredOwners.map((o) => (
+              <div
                 key={o.id}
-                gridTemplateColumns={TABLE_COLUMNS}
-                isLast={i === filteredOwners.length - 1}
+                onClick={() => setDrawerOwner(o)}
+                style={{
+                  padding: 18,
+                  borderRadius: radius.xxl,
+                  background: color.panel,
+                  border: `1px solid ${color.borderAlt}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                  cursor: 'pointer',
+                }}
               >
-                <div
-                  onClick={() => setDrawerOwner(o)}
-                  style={{ color: color.textPrimaryAlt, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  {o.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      flex: '0 0 44px',
+                      borderRadius: '50%',
+                      background: color.muteBg,
+                      color: color.textPrimaryAlt,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {initials(o.contact_name ?? o.name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div
+                      style={{
+                        color: color.textPrimaryAlt,
+                        fontSize: 15,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {o.name}
+                    </div>
+                    <div style={{ color: color.textTertiary, fontSize: 12.5 }}>
+                      {o.contact_name ?? '—'} · {o.contact_phone ?? '—'}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ color: color.textTertiary, fontSize: 13 }}>{o.contact_name ?? '—'}</div>
-                <div style={{ color: color.textTertiary, fontSize: 13 }}>{o.contact_phone ?? '—'}</div>
-                <div style={{ color: color.textTertiary, fontSize: 13 }}>{o.contact_email ?? '—'}</div>
-              </DataTableRow>
-            ))
-          )}
-        </DataTable>
+                {o.contact_email && <div style={{ color: color.textTertiary, fontSize: 12.5 }}>{o.contact_email}</div>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(pointNamesByOwner.get(o.id) ?? []).map((name) => (
+                    <span
+                      key={name}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: radius.sm,
+                        background: color.panelAlt,
+                        border: `1px solid ${color.borderAlt}`,
+                        color: color.textSecondary,
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {drawerOwner && (

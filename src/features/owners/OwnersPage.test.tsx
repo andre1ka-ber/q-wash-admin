@@ -40,8 +40,8 @@ describe('OwnersPage', () => {
     renderPage();
     expect(await screen.findByText('ООО Titan')).toBeInTheDocument();
     expect(screen.getByText('3 владельца')).toBeInTheDocument();
-    // Aqua Line has no contact name/phone/email -> three dashes in its row
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
+    // Aqua Line has no contact name/phone -> dashes on its card
+    expect(screen.getByText('— · —')).toBeInTheDocument();
   });
 
   it.each([

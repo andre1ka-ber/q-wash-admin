@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import {
   color,
+  useIsMobile,
   listAdminWashingPoints,
   getAdminStats,
   listQueueNetworkWide,
@@ -14,7 +15,7 @@ import {
   type StatusPillKind,
   type WashingPointStatus,
 } from 'q-wash-shared';
-import { HEADER_HEIGHT } from '../../theme/layout';
+import { PageHeader } from '../../shared/layout/PageHeader';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
 
@@ -65,6 +66,7 @@ export function AnalyticsPage() {
     })),
   });
 
+  const isMobile = useIsMobile();
   const stats = statsQuery.data;
   const activeRatio = useMemo(
     () => (stats && stats.points_total > 0 ? stats.points_active / stats.points_total : null),
@@ -80,34 +82,20 @@ export function AnalyticsPage() {
 
   return (
     <>
-      <div
-        style={{
-          height: HEADER_HEIGHT,
-          flex: `0 0 ${HEADER_HEIGHT}px`,
-          borderBottom: `1px solid ${color.borderAlt}`,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 30px',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>Аналитика</div>
-          <div style={{ color: color.textFaint, fontSize: 12 }}>Сегодня · сеть целиком</div>
-        </div>
-      </div>
+      <PageHeader title="Аналитика" subtitle="Сегодня · сеть целиком" />
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '24px 30px 30px',
+          padding: isMobile ? '18px 18px 30px' : '24px 30px 30px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 22,
+          gap: isMobile ? 16 : 22,
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 14 }}>
           <StatCard label="Точек в сети" value={stats?.points_total ?? '—'} />
           <StatCard label="Активных точек" value={stats ? `${stats.points_active} (${formatPercent(activeRatio)})` : '—'} />
           <StatCard
@@ -123,6 +111,39 @@ export function AnalyticsPage() {
           По точкам
         </div>
 
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {pointsQuery.isLoading ? (
+              <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
+            ) : points.length === 0 ? (
+              <div style={{ color: color.textFaint, fontSize: 13 }}>Точек пока нет</div>
+            ) : (
+              points.map((p, i) => (
+                <div key={p.id} style={{ padding: 14, borderRadius: 16, background: color.panel, border: `1px solid ${color.borderAlt}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div
+                      style={{
+                        color: color.textPrimaryAlt,
+                        fontSize: 15,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {p.name}
+                    </div>
+                    <StatusPill kind={STATUS_KIND[p.status]}>{STATUS_LABEL[p.status]}</StatusPill>
+                  </div>
+                  <div style={{ color: color.textTertiary, fontSize: 12.5 }}>
+                    Боксы {p.boxes_count} · Услуги {p.services_count} · В очереди{' '}
+                    {boardsLoading ? '…' : (boardQueries[i]?.data?.items.length ?? '—')}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
         <DataTable>
           <DataTableHeaderRow
             gridTemplateColumns={TABLE_COLUMNS}
@@ -159,6 +180,7 @@ export function AnalyticsPage() {
             ))
           )}
         </DataTable>
+        )}
       </div>
     </>
   );

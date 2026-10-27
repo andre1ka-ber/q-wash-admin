@@ -131,15 +131,16 @@ describe('PointsPage', () => {
     expect(screen.getByText('new-point-drawer')).toBeInTheDocument();
   });
 
-  it('mobile: shows the app title, the page title with counts, and the search field in the page body', async () => {
+  it('mobile: leaves the title to the shell header and keeps the search field in the page body', async () => {
     stubApi();
     mobile = true;
     const user = userEvent.setup();
     renderPage();
     await screen.findByText('Pegasus');
 
-    expect(screen.getByText('Q Wash · Админ')).toBeInTheDocument();
-    expect(screen.getAllByText('Мойки')).toHaveLength(1);
+    // the app title and page title now live in AdminShell's mobile header
+    expect(screen.queryByText('Q Wash · Админ')).not.toBeInTheDocument();
+    expect(screen.queryByText('Мойки')).not.toBeInTheDocument();
     const search = screen.getByPlaceholderText('Поиск по названию или адресу');
     await user.type(search, 'Aqua');
     expect(screen.queryByText('Pegasus')).not.toBeInTheDocument();

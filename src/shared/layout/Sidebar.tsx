@@ -4,26 +4,8 @@ import { NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { authStore, color, radius, listConnectionRequests, ConfirmDialog, LogoMark } from 'q-wash-shared';
 import { SIDEBAR_WIDTH } from '../../theme/layout';
-
-interface NavItem {
-  key: string;
-  icon: string;
-  label: string;
-  to?: string;
-}
-
-// "Мойки", "Владельцы", "Записи" and "Аналитика" have real screens — the
-// rest are drawn but inert until their own design+build phase lands (see
-// q-wash-admin/PLAN.md).
-const NAV_ITEMS: NavItem[] = [
-  { key: 'points', icon: '▤', label: 'Мойки', to: '/' },
-  { key: 'qr-codes', icon: '▦', label: 'QR-коды', to: '/qr-codes' },
-  { key: 'owners', icon: '☺', label: 'Владельцы', to: '/owners' },
-  { key: 'services', icon: '≡', label: 'Услуги-справочник' },
-  { key: 'bookings', icon: '◷', label: 'Записи', to: '/bookings' },
-  { key: 'analytics', icon: '◲', label: 'Аналитика', to: '/analytics' },
-  { key: 'settings', icon: '⚙', label: 'Настройки' },
-];
+import { NavIcon } from './navIcons';
+import { NAV_ITEMS } from './navItems';
 
 const navItemBase: CSSProperties = {
   display: 'flex',
@@ -96,16 +78,16 @@ export function Sidebar() {
                   ...navItemBase,
                   cursor: 'pointer',
                   textDecoration: 'none',
-                  background: isActive ? '#221d22' : 'transparent',
-                  color: isActive ? color.textPrimary : color.textMuted,
+                  background: isActive ? color.gold : 'transparent',
+                  color: isActive ? color.goldOnLight : color.textSecondary,
                 })}
               >
-                <span style={{ width: 18, textAlign: 'center', opacity: 0.8 }}>{item.icon}</span>
+                <NavIcon name={item.key} />
                 <span>{item.label}</span>
               </NavLink>
             ) : (
               <div key={item.key} style={{ ...navItemBase, color: color.textDim, cursor: 'default' }}>
-                <span style={{ width: 18, textAlign: 'center', opacity: 0.8 }}>{item.icon}</span>
+                <NavIcon name={item.key} />
                 <span>{item.label}</span>
               </div>
             ),

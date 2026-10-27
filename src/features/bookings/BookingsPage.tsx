@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   color,
+  useIsMobile,
   ApiError,
   listAdminWashingPoints,
   listQueueNetworkWide,
@@ -16,7 +17,7 @@ import {
   type BoardItemStatus,
   type StatusPillKind,
 } from 'q-wash-shared';
-import { HEADER_HEIGHT } from '../../theme/layout';
+import { PageHeader } from '../../shared/layout/PageHeader';
 import { pluralRu } from '../../shared/pluralRu';
 
 const EMPTY_POINTS: AdminWashingPoint[] = [];
@@ -94,6 +95,7 @@ function AdvanceButton({ row }: { row: Row }) {
 }
 
 export function BookingsPage() {
+  const isMobile = useIsMobile();
   const pointsQuery = useQuery({
     queryKey: ['admin', 'washing-points'],
     queryFn: () => listAdminWashingPoints(),
@@ -131,40 +133,57 @@ export function BookingsPage() {
 
   return (
     <>
-      <div
-        style={{
-          height: HEADER_HEIGHT,
-          flex: `0 0 ${HEADER_HEIGHT}px`,
-          borderBottom: `1px solid ${color.borderAlt}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 30px',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>Записи</div>
-          <div style={{ color: color.textFaint, fontSize: 12 }}>
-            {!boardsLoading ? `${rows.length} ${pluralRu(rows.length, ['активная запись', 'активные записи', 'активных записей'])} по сети` : ' '}
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Записи"
+        subtitle={
+          !boardsLoading
+            ? `${rows.length} ${pluralRu(rows.length, ['активная запись', 'активные записи', 'активных записей'])} по сети`
+            : undefined
+        }
+      />
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '24px 30px 30px',
+          padding: isMobile ? '18px 18px 30px' : '24px 30px 30px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 22,
+          gap: isMobile ? 16 : 22,
         }}
       >
         {boardsError && (
           <div style={{ color: color.bad, fontSize: 13 }}>Не удалось загрузить очередь по одной или нескольким мойкам</div>
         )}
 
+        {isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {boardsLoading ? (
+              <div style={{ color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
+            ) : rows.length === 0 ? (
+              <div style={{ color: color.textFaint, fontSize: 13 }}>Сейчас в очереди никого нет</div>
+            ) : (
+              rows.map((row) => (
+                <div key={row.id} style={{ padding: 14, borderRadius: 16, background: color.panel, border: `1px solid ${color.borderAlt}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ color: color.textPrimaryAlt, fontSize: 15, fontWeight: 600 }}>
+                      {formatWindow(row.scheduled_start_at, row.scheduled_end_at)}
+                    </div>
+                    <StatusPill kind={STATUS_KIND[row.status]}>{STATUS_LABEL[row.status]}</StatusPill>
+                  </div>
+                  <div style={{ color: color.textSecondary, fontSize: 13.5 }}>
+                    {row.car_name ?? 'Авто'} · ••{row.customer_phone_last4}
+                  </div>
+                  <div style={{ color: color.textTertiary, fontSize: 12.5 }}>
+                    {row.washing_point_name} · Бокс {row.box_number}
+                  </div>
+                  <AdvanceButton row={row} />
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
         <DataTable>
           <DataTableHeaderRow
             gridTemplateColumns={TABLE_COLUMNS}
@@ -204,6 +223,7 @@ export function BookingsPage() {
             ))
           )}
         </DataTable>
+        )}
       </div>
     </>
   );

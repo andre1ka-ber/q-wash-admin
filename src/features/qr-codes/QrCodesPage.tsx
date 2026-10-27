@@ -23,8 +23,7 @@ import {
   type QrCodeStatus,
   type StatusPillKind,
 } from 'q-wash-shared';
-import { HEADER_HEIGHT } from '../../theme/layout';
-import { BOTTOM_NAV_HEIGHT } from '../../shared/layout/BottomNav';
+import { PageHeader } from '../../shared/layout/PageHeader';
 
 const EMPTY_ITEMS: QrCode[] = [];
 
@@ -329,34 +328,16 @@ export function QrCodesPage() {
         `}</style>
       )}
 
-      <div
-        style={{
-          minHeight: HEADER_HEIGHT,
-          flex: '0 0 auto',
-          borderBottom: `1px solid ${color.borderAlt}`,
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: isMobile ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          gap: isMobile ? 12 : 0,
-          padding: isMobile ? '16px 18px' : '0 30px',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>QR-коды</div>
-          <div style={{ color: color.textFaint, fontSize: 12 }}>
-            {stats ? `${stats.total} кодов` : ' '}
-          </div>
-        </div>
+      <PageHeader title="QR-коды" subtitle={stats ? `${stats.total} кодов` : undefined}>
         {!isMobile && (
-          <div style={{ display: 'flex', gap: 10 }}>
+          <>
             <GhostButton onClick={handlePrint} disabled={freeCodesForPrint.length === 0}>
               Печать свободных · PDF
             </GhostButton>
             <PrimaryButton onClick={() => setGenOpen(true)}>Сгенерировать партию</PrimaryButton>
-          </div>
+          </>
         )}
-      </div>
+      </PageHeader>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <div
@@ -370,7 +351,7 @@ export function QrCodesPage() {
             gap: isMobile ? 14 : 18,
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: isMobile ? 8 : 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 12 }}>
             <StatCard label="Всего" value={stats?.total ?? '—'} />
             <StatCard label="Свободно" value={stats?.free ?? '—'} />
             <StatCard label="Привязано" value={stats?.assigned ?? '—'} />
@@ -525,7 +506,7 @@ export function QrCodesPage() {
           style={{
             position: 'fixed',
             right: 18,
-            bottom: BOTTOM_NAV_HEIGHT + 16,
+            bottom: 30,
             zIndex: 14,
             height: 52,
             padding: '0 20px',

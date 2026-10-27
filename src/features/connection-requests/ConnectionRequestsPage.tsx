@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   color,
+  useIsMobile,
   radius,
   ApiError,
   listConnectionRequests,
@@ -18,7 +19,7 @@ import {
   type PointAccounts,
   type StatusPillKind,
 } from 'q-wash-shared';
-import { HEADER_HEIGHT } from '../../theme/layout';
+import { PageHeader } from '../../shared/layout/PageHeader';
 import { pluralRu } from '../../shared/pluralRu';
 import { ConnectionRequestDrawer } from './ConnectionRequestDrawer';
 
@@ -104,6 +105,7 @@ function ReviewActions({ request }: { request: ConnectionRequest }) {
 }
 
 export function ConnectionRequestsPage() {
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<ConnectionRequestStatus | 'all'>('new');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -116,32 +118,21 @@ export function ConnectionRequestsPage() {
 
   return (
     <>
-      <div
-        style={{
-          height: HEADER_HEIGHT,
-          flex: `0 0 ${HEADER_HEIGHT}px`,
-          borderBottom: `1px solid ${color.borderAlt}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 30px',
-        }}
+      <PageHeader
+        title="Заявки на подключение"
+        subtitle={
+          requestsQuery.data ? `${requests.length} ${pluralRu(requests.length, ['заявка', 'заявки', 'заявок'])}` : undefined
+        }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ color: color.textPrimary, fontSize: 19, fontWeight: 700 }}>Заявки на подключение</div>
-          <div style={{ color: color.textFaint, fontSize: 12 }}>
-            {requestsQuery.data ? `${requests.length} ${pluralRu(requests.length, ['заявка', 'заявки', 'заявок'])}` : ' '}
-          </div>
-        </div>
         <PrimaryButton onClick={() => setDrawerOpen(true)}>+ Новая заявка</PrimaryButton>
-      </div>
+      </PageHeader>
 
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '24px 30px 30px',
+          padding: isMobile ? '18px 18px 30px' : '24px 30px 30px',
           display: 'flex',
           flexDirection: 'column',
           gap: 22,
