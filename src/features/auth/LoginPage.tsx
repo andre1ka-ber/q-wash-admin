@@ -58,7 +58,7 @@ export function LoginPage() {
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
           <LogoMark size={44} />
-          <div style={{ fontFamily: font.display, color: color.textPrimary, fontSize: 20 }}>Queue Admin</div>
+          <div style={{ fontFamily: font.display, color: color.textPrimary, fontSize: 20 }}>Q Wash · Админ</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
