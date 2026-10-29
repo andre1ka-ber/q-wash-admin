@@ -9,6 +9,7 @@ const getWashingPoint = vi.fn();
 const updateWashingPoint = vi.fn();
 const listOwners = vi.fn();
 const getWashingPointCredentials = vi.fn();
+const createWashingPointCredentials = vi.fn();
 const resetWashingPointCredentials = vi.fn();
 
 vi.mock('q-wash-shared', async (importOriginal) => {
@@ -19,6 +20,7 @@ vi.mock('q-wash-shared', async (importOriginal) => {
     updateWashingPoint: (...a: unknown[]) => updateWashingPoint(...a),
     listOwners: (...a: unknown[]) => listOwners(...a),
     getWashingPointCredentials: (...a: unknown[]) => getWashingPointCredentials(...a),
+    createWashingPointCredentials: (...a: unknown[]) => createWashingPointCredentials(...a),
     resetWashingPointCredentials: (...a: unknown[]) => resetWashingPointCredentials(...a),
   };
 });
@@ -172,6 +174,26 @@ describe('EditPointDrawer', () => {
     await user.click(screen.getByRole('button', { name: 'Я сохранил(а) данные' }));
     expect(screen.queryByText('nEwPass789')).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('offers to create a missing account and reveals its password once', async () => {
+    stubApi();
+    getWashingPointCredentials
+      .mockResolvedValueOnce({ staff: { username: 'pegasus' }, worker: null })
+      .mockResolvedValue({ staff: { username: 'pegasus' }, worker: { username: 'pegasus-worker' } });
+    createWashingPointCredentials.mockResolvedValue({ username: 'pegasus-worker', password: 'fResh123' });
+    const user = userEvent.setup();
+    renderDrawer();
+    await screen.findByDisplayValue('Pegasus');
+
+    expect(await screen.findByText('Аккаунт не создан')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Сбросить пароль' })).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+
+    await waitFor(() => expect(createWashingPointCredentials).toHaveBeenCalledWith('p1', 'worker'));
+    expect(await screen.findByText('fResh123')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Аккаунт не создан')).not.toBeInTheDocument());
   });
 
   it('cancel closes without saving', async () => {

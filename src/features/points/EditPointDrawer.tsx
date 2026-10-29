@@ -11,6 +11,7 @@ import {
   getWashingPoint,
   updateWashingPoint,
   getWashingPointCredentials,
+  createWashingPointCredentials,
   resetWashingPointCredentials,
   GhostButton,
   PrimaryButton,
@@ -24,6 +25,8 @@ export interface EditPointDrawerProps {
   pointId: string;
   onClose: () => void;
 }
+
+const ROLE_LABEL = { staff: 'Персонал (кабинет)', worker: 'Работник (очередь)' };
 
 const STATUS_OPTIONS: { value: WashingPointStatus; label: string }[] = [
   { value: 'active', label: 'Активна' },
@@ -54,11 +57,16 @@ function CredentialUsernameRow({
   username,
   onReset,
   resetting,
+  onCreate,
+  creating,
 }: {
   label: string;
-  username: string;
+  /** null: the point has no such account yet. */
+  username: string | null;
   onReset: () => void;
   resetting: boolean;
+  onCreate: () => void;
+  creating: boolean;
 }) {
   return (
     <div
@@ -74,11 +82,21 @@ function CredentialUsernameRow({
     >
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ color: color.textFaint, fontSize: 11 }}>{label}</div>
-        <div style={{ color: color.textPrimaryAlt, fontSize: 13, fontFamily: 'monospace' }}>{username}</div>
+        {username ? (
+          <div style={{ color: color.textPrimaryAlt, fontSize: 13, fontFamily: 'monospace' }}>{username}</div>
+        ) : (
+          <div style={{ color: color.textMuted, fontSize: 13 }}>Аккаунт не создан</div>
+        )}
       </div>
-      <GhostButton type="button" onClick={onReset} disabled={resetting} style={{ padding: '8px 12px', fontSize: 12 }}>
-        {resetting ? 'Сбрасываем…' : 'Сбросить пароль'}
-      </GhostButton>
+      {username ? (
+        <GhostButton type="button" onClick={onReset} disabled={resetting} style={{ padding: '8px 12px', fontSize: 12 }}>
+          {resetting ? 'Сбрасываем…' : 'Сбросить пароль'}
+        </GhostButton>
+      ) : (
+        <GhostButton type="button" onClick={onCreate} disabled={creating} style={{ padding: '8px 12px', fontSize: 12 }}>
+          {creating ? 'Создаём…' : 'Создать аккаунт'}
+        </GhostButton>
+      )}
     </div>
   );
 }
@@ -96,7 +114,7 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
   const [status, setStatus] = useState<WashingPointStatus>('active');
   const [location, setLocation] = useState<LatLngLiteral | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [resetPassword, setResetPassword] = useState<{ label: string; username: string; password: string } | null>(null);
+  const [resetPassword, setResetPassword] = useState<{ title: string; label: string; username: string; password: string } | null>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -113,9 +131,18 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
   const resetMutation = useMutation({
     mutationFn: (role: 'staff' | 'worker') => resetWashingPointCredentials(pointId, role),
     onSuccess: (credential, role) => {
-      setResetPassword({ label: role === 'staff' ? 'Персонал (кабинет)' : 'Работник (очередь)', ...credential });
+      setResetPassword({ title: 'Пароль сброшен', label: ROLE_LABEL[role], ...credential });
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : 'Не удалось сбросить пароль'),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (role: 'staff' | 'worker') => createWashingPointCredentials(pointId, role),
+    onSuccess: (credential, role) => {
+      setResetPassword({ title: 'Аккаунт создан', label: ROLE_LABEL[role], ...credential });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'washing-point', pointId, 'credentials'] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : 'Не удалось создать аккаунт'),
   });
 
   const ownersQuery = useQuery({
@@ -348,16 +375,20 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <CredentialUsernameRow
-                    label="Персонал (кабинет)"
-                    username={credentialsQuery.data?.staff.username ?? ''}
+                    label={ROLE_LABEL.staff}
+                    username={credentialsQuery.data?.staff?.username ?? null}
                     onReset={() => resetMutation.mutate('staff')}
                     resetting={resetMutation.isPending && resetMutation.variables === 'staff'}
+                    onCreate={() => createMutation.mutate('staff')}
+                    creating={createMutation.isPending && createMutation.variables === 'staff'}
                   />
                   <CredentialUsernameRow
-                    label="Работник (очередь)"
-                    username={credentialsQuery.data?.worker.username ?? ''}
+                    label={ROLE_LABEL.worker}
+                    username={credentialsQuery.data?.worker?.username ?? null}
                     onReset={() => resetMutation.mutate('worker')}
                     resetting={resetMutation.isPending && resetMutation.variables === 'worker'}
+                    onCreate={() => createMutation.mutate('worker')}
+                    creating={createMutation.isPending && createMutation.variables === 'worker'}
                   />
                 </div>
               )}
@@ -383,8 +414,8 @@ export function EditPointDrawer({ pointId, onClose }: EditPointDrawerProps) {
     </div>
     {resetPassword && (
       <CredentialsRevealModal
-        title="Пароль сброшен"
-        items={[resetPassword]}
+        title={resetPassword.title}
+        items={[{ label: resetPassword.label, username: resetPassword.username, password: resetPassword.password }]}
         onClose={() => setResetPassword(null)}
       />
     )}

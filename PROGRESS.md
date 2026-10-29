@@ -739,3 +739,7 @@ See `PLAN.md` for the full plan and build order.
   explicitly). The page reloads when a new version takes over, and re-checks
   hourly and on return to the app — previously an open tab or a resumed phone
   app kept running the old build until a hard refresh. `vite build` verified.
+- 2026-10-29 — Edit-point drawer: a washing point without a staff/worker account (old points) no longer
+  fails to show credentials. The missing role shows "Аккаунт не создан" with a "Создать аккаунт" button
+  (`createWashingPointCredentials` in q-wash-shared) and reveals the one-time password. Needs the matching
+  q-wash-api change deployed first.
