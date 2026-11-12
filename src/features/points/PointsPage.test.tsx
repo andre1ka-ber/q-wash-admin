@@ -6,6 +6,7 @@ import type { AdminStats, AdminWashingPoint } from 'q-wash-shared';
 import { PointsPage } from './PointsPage';
 
 const listAdminWashingPoints = vi.fn();
+const listWashingPoints = vi.fn();
 const getAdminStats = vi.fn();
 let mobile = false;
 
@@ -15,6 +16,7 @@ vi.mock('q-wash-shared', async (importOriginal) => {
     ...actual,
     useIsMobile: () => mobile,
     listAdminWashingPoints: (...a: unknown[]) => listAdminWashingPoints(...a),
+    listWashingPoints: (...a: unknown[]) => listWashingPoints(...a),
     getAdminStats: (...a: unknown[]) => getAdminStats(...a),
   };
 });
@@ -49,6 +51,13 @@ function stubApi() {
   mobile = false;
   listAdminWashingPoints.mockResolvedValue({ items: points });
   getAdminStats.mockResolvedValue(stats);
+  // The public list carries the hours; it leaves out pending_review points (Express 24).
+  listWashingPoints.mockResolvedValue({
+    items: [
+      { id: 'p1', open_time: '09:00', close_time: '21:00' },
+      { id: 'p2', open_time: '00:00', close_time: '24:00' },
+    ],
+  });
 }
 
 afterEach(() => {
@@ -66,6 +75,16 @@ describe('PointsPage', () => {
     expect(screen.getByText('40')).toBeInTheDocument(); // bookings today
     expect(screen.getByText('Без владельца')).toBeInTheDocument(); // AquaLine
     expect(screen.getAllByText('Активна')).toHaveLength(2); // the filter chip + Pegasus's status pill
+  });
+
+  it('shows each point\'s hours, "круглосуточно" for all-day, and a dash for points not in the public list', async () => {
+    stubApi();
+    renderPage();
+    await screen.findByText('Pegasus');
+    expect(await screen.findByText('09:00–21:00')).toBeInTheDocument();
+    expect(screen.getByText('круглосуточно')).toBeInTheDocument(); // AquaLine
+    expect(screen.getByText('Часы')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1); // Express 24 (pending review)
   });
 
   it('filters by status', async () => {
@@ -124,7 +143,9 @@ describe('PointsPage', () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText('Pegasus');
-    expect(screen.getAllByText('Владелец')).toHaveLength(3);
+    expect(screen.getAllByText('Часы')).toHaveLength(3);
+    expect(screen.getByText('ул. Рудаки, 84 · ООО Titan')).toBeInTheDocument(); // owner now sits under the name
+    expect(screen.getByText('3 точки · 1 активная · 1 заявка')).toBeInTheDocument();
     expect(screen.getAllByText('+ Новая мойка')).toHaveLength(1);
 
     await user.click(screen.getByText('+ Новая мойка'));

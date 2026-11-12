@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { authStore, color, listConnectionRequests, ConfirmDialog } from 'q-wash-shared';
 import { NavIcon } from './navIcons';
 import { NAV_ITEMS, navItemForPath } from './navItems';
+import { usePendingOwnersCount } from './usePendingOwnersCount';
 
 // Menu button + page title bar and the slide-in menu from the mobile design
 // (replaces the old bottom tab bar — the design has no bottom nav).
@@ -18,6 +19,7 @@ export function MobileHeader() {
     queryFn: () => listConnectionRequests('new'),
   });
   const newCount = newRequestsQuery.data?.items.length ?? 0;
+  const pendingOwners = usePendingOwnersCount();
 
   return (
     <>
@@ -150,6 +152,23 @@ export function MobileHeader() {
                   >
                     <NavIcon name={item.key} size={20} />
                     <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.key === 'owners' && pendingOwners > 0 && (
+                      <span
+                        style={{
+                          minWidth: 22,
+                          padding: '2px 7px',
+                          boxSizing: 'border-box',
+                          borderRadius: 10,
+                          textAlign: 'center',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          background: color.muteBg,
+                          color: color.textSecondary,
+                        }}
+                      >
+                        {pendingOwners}
+                      </span>
+                    )}
                   </NavLink>
                 );
               })}

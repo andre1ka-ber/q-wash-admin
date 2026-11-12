@@ -1,15 +1,22 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, type Owner } from 'q-wash-shared';
+import { ApiError, type AdminWashingPoint, type Owner } from 'q-wash-shared';
 import { OwnersPage } from './OwnersPage';
 
 const listOwners = vi.fn();
+const listAdminWashingPoints = vi.fn();
+const updateWashingPoint = vi.fn();
 
 vi.mock('q-wash-shared', async (importOriginal) => {
   const actual = await importOriginal<typeof import('q-wash-shared')>();
-  return { ...actual, listOwners: (...a: unknown[]) => listOwners(...a) };
+  return {
+    ...actual,
+    listOwners: (...a: unknown[]) => listOwners(...a),
+    listAdminWashingPoints: (...a: unknown[]) => listAdminWashingPoints(...a),
+    updateWashingPoint: (...a: unknown[]) => updateWashingPoint(...a),
+  };
 });
 
 const owners: Owner[] = [
@@ -27,8 +34,23 @@ function renderPage() {
   );
 }
 
+const point = (over: Partial<AdminWashingPoint>): AdminWashingPoint => ({
+  id: 'p', owner_id: 'o1', owner_name: 'ООО Titan', name: 'Point', address: 'A', status: 'active',
+  boxes_count: 1, services_count: 0, created_at: '2026-01-01T00:00:00Z', ...over,
+});
+
+// o1 has an active point, o2 an application waiting for review, o3 a paused point.
+const points = [
+  point({ id: 'p1', owner_id: 'o1', name: 'Titan Wash', status: 'active' }),
+  point({ id: 'p2', owner_id: 'o2', name: 'Pegas Detailing', status: 'pending_review' }),
+  point({ id: 'p3', owner_id: 'o2', name: 'Pegas Box', status: 'pending_review' }),
+  point({ id: 'p4', owner_id: 'o3', name: 'Aqua Center', status: 'paused' }),
+];
+
 beforeEach(() => {
   listOwners.mockResolvedValue({ items: owners });
+  listAdminWashingPoints.mockResolvedValue({ items: [] });
+  updateWashingPoint.mockResolvedValue({});
 });
 afterEach(() => {
   cleanup();
@@ -98,5 +120,74 @@ describe('OwnersPage', () => {
     renderPage();
     await user.click(await screen.findByText('Pegas Auto'));
     await waitFor(() => expect(screen.getByDisplayValue('Pegas Auto')).toBeInTheDocument());
+  });
+});
+
+describe('OwnersPage status, filters and review actions', () => {
+  beforeEach(() => listAdminWashingPoints.mockResolvedValue({ items: points }));
+
+  it('shows a status chip per owner and counts owners under review in the subtitle', async () => {
+    renderPage();
+    expect(await screen.findByText('3 владельца · 1 на проверке')).toBeInTheDocument();
+    expect(screen.getByText('Активен')).toBeInTheDocument(); // o1
+    expect(screen.getByText('Заявка')).toBeInTheDocument(); // o2
+    expect(screen.getByText('На паузе', { selector: 'span' })).toBeInTheDocument(); // o3
+  });
+
+  it('filters by status', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText('3 владельца · 1 на проверке');
+
+    await user.click(screen.getByText('Заявки'));
+    expect(screen.getByText('Pegas Auto')).toBeInTheDocument();
+    expect(screen.queryByText('ООО Titan')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aqua Line')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Активные'));
+    expect(screen.getByText('ООО Titan')).toBeInTheDocument();
+    expect(screen.queryByText('Pegas Auto')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Все'));
+    expect(screen.getByText('Aqua Line')).toBeInTheDocument();
+  });
+
+  it('only owners under review get Одобрить / Отклонить', async () => {
+    renderPage();
+    await screen.findByText('Pegas Auto');
+    expect(screen.getAllByRole('button', { name: 'Одобрить' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Отклонить' })).toHaveLength(1);
+  });
+
+  it('approving activates every point of the owner that waits for review, after a confirmation', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Одобрить' }));
+    expect(updateWashingPoint).not.toHaveBeenCalled(); // not before confirming
+
+    await user.click(within(screen.getByText('Одобрить заявку?').parentElement as HTMLElement).getByRole('button', { name: 'Одобрить' }));
+    await waitFor(() => expect(updateWashingPoint).toHaveBeenCalledTimes(2));
+    expect(updateWashingPoint).toHaveBeenCalledWith('p2', { status: 'active' });
+    expect(updateWashingPoint).toHaveBeenCalledWith('p3', { status: 'active' });
+  });
+
+  it('rejecting pauses those points, and cancelling the dialog changes nothing', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Отклонить' }));
+    await user.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(updateWashingPoint).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Отклонить' }));
+    await user.click(within(screen.getByText('Отклонить заявку?').parentElement as HTMLElement).getByRole('button', { name: 'Отклонить' }));
+    await waitFor(() => expect(updateWashingPoint).toHaveBeenCalledWith('p2', { status: 'paused' }));
+    expect(updateWashingPoint).toHaveBeenCalledWith('p3', { status: 'paused' });
+  });
+
+  it('clicking the review buttons does not open the owner drawer', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Одобрить' }));
+    expect(screen.queryByDisplayValue('Pegas Auto')).not.toBeInTheDocument();
   });
 });

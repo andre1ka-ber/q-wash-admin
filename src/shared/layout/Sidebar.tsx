@@ -6,6 +6,8 @@ import { authStore, color, radius, listConnectionRequests, ConfirmDialog, LogoMa
 import { SIDEBAR_WIDTH } from '../../theme/layout';
 import { NavIcon } from './navIcons';
 import { NAV_ITEMS } from './navItems';
+import { pluralRu } from '../pluralRu';
+import { usePendingOwnersCount } from './usePendingOwnersCount';
 
 const navItemBase: CSSProperties = {
   display: 'flex',
@@ -17,6 +19,21 @@ const navItemBase: CSSProperties = {
   fontWeight: 600,
 };
 
+// The small count chip on a nav item (design: dark chip, inverted on the active gold item).
+function navBadge(active: boolean): CSSProperties {
+  return {
+    minWidth: 22,
+    padding: '2px 7px',
+    boxSizing: 'border-box',
+    borderRadius: 10,
+    textAlign: 'center',
+    fontSize: 11.5,
+    fontWeight: 700,
+    background: active ? color.goldOnLight : color.muteBg,
+    color: active ? color.gold : color.textSecondary,
+  };
+}
+
 export function Sidebar() {
   // "new"-status requests are what need admin attention, so the badge
   // counts those (not the "all connection requests" total).
@@ -25,6 +42,7 @@ export function Sidebar() {
     queryFn: () => listConnectionRequests('new'),
   });
   const newCount = newRequestsQuery.data?.items.length ?? 0;
+  const pendingOwners = usePendingOwnersCount();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   return (
@@ -82,8 +100,15 @@ export function Sidebar() {
                   color: isActive ? color.goldOnLight : color.textSecondary,
                 })}
               >
-                <NavIcon name={item.key} />
-                <span>{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <NavIcon name={item.key} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.key === 'owners' && pendingOwners > 0 && (
+                      <span style={navBadge(isActive)}>{pendingOwners}</span>
+                    )}
+                  </>
+                )}
               </NavLink>
             ) : (
               <div key={item.key} style={{ ...navItemBase, color: color.textDim, cursor: 'default' }}>
@@ -99,32 +124,21 @@ export function Sidebar() {
           style={({ isActive }) => ({
             marginTop: 'auto',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '13px 14px',
+            flexDirection: 'column',
+            gap: 6,
+            padding: 14,
             borderRadius: radius.lg,
             textDecoration: 'none',
             background: isActive ? '#221d22' : color.panel,
             border: `1px solid ${isActive ? color.borderStrong : color.border}`,
           })}
         >
-          <span style={{ color: color.textSecondary, fontSize: 13, fontWeight: 600 }}>Заявки на подключение</span>
-          <span
-            style={{
-              minWidth: 22,
-              height: 22,
-              padding: '0 6px',
-              borderRadius: radius.pill,
-              background: newCount > 0 ? color.gold : color.muteBg,
-              color: newCount > 0 ? color.goldOnLight : color.mute,
-              fontSize: 12,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {newCount}
+          <span style={{ color: color.textFaint, fontSize: 12 }}>Заявки на подключение</span>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ color: newCount > 0 ? color.gold : color.textMuted, fontSize: 22, fontWeight: 800 }}>{newCount}</span>
+            <span style={{ color: color.textFaint, fontSize: 12 }}>
+              {pluralRu(newCount, ['новая', 'новые', 'новых'])}
+            </span>
           </span>
         </NavLink>
       </div>

@@ -4,6 +4,7 @@ import {
   color,
   radius,
   listAdminWashingPoints,
+  listWashingPoints,
   getAdminStats,
   resolveApiAssetUrl,
   StatCard,
@@ -19,6 +20,7 @@ import {
 } from 'q-wash-shared';
 import { HEADER_HEIGHT } from '../../theme/layout';
 import { pluralRu } from '../../shared/pluralRu';
+import { formatHours } from './formatHours';
 import { NewPointDrawer } from './NewPointDrawer';
 import { EditPointDrawer } from './EditPointDrawer';
 
@@ -68,7 +70,8 @@ const STATUS_KIND: Record<WashingPointStatus, StatusPillKind> = {
   pending_review: 'warn',
 };
 
-const TABLE_COLUMNS = '2.4fr 1.6fr 0.9fr 1fr 1fr 60px';
+const TABLE_COLUMNS = '2.4fr 1.6fr 0.8fr 0.9fr 1.3fr 1fr 60px';
+
 
 type StatusFilter = 'all' | WashingPointStatus;
 
@@ -90,6 +93,17 @@ export function PointsPage() {
     queryKey: ['admin', 'washing-points'],
     queryFn: () => listAdminWashingPoints(),
   });
+  // The admin list has no hours; the public list does (without pending_review
+  // points, which then show a dash). Joined by id.
+  const hoursQuery = useQuery({
+    queryKey: ['washing-points', 'public'],
+    queryFn: () => listWashingPoints(),
+  });
+  const hoursById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of hoursQuery.data?.items ?? []) map.set(p.id, formatHours(p.open_time, p.close_time));
+    return map;
+  }, [hoursQuery.data]);
   const statsQuery = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: () => getAdminStats(),
@@ -107,10 +121,14 @@ export function PointsPage() {
 
   const stats = statsQuery.data;
 
+  // The phone design also counts applications waiting for review ("· 3 заявки").
+  const pendingCount = points.filter((p) => p.status === 'pending_review').length;
   const subtitle = stats
     ? `${stats.points_total} ${pluralRu(stats.points_total, ['точка', 'точки', 'точек'])} · ${
         stats.points_active
-      } ${pluralRu(stats.points_active, ['активная', 'активные', 'активных'])}`
+      } ${pluralRu(stats.points_active, ['активная', 'активные', 'активных'])}${
+        pendingCount > 0 ? ` · ${pendingCount} ${pluralRu(pendingCount, ['заявка', 'заявки', 'заявок'])}` : ''
+      }`
     : ' ';
 
   return (
@@ -292,7 +310,7 @@ export function PointsPage() {
                           textOverflow: 'ellipsis',
                         }}
                       >
-                        {p.address}
+                        {p.owner_name ? `${p.address} · ${p.owner_name}` : p.address}
                       </div>
                     </div>
                     <StatusPill kind={STATUS_KIND[p.status]}>{STATUS_LABEL[p.status]}</StatusPill>
@@ -307,18 +325,9 @@ export function PointsPage() {
                       <span style={{ color: color.textPrimaryAlt, fontSize: 13, fontWeight: 600 }}>{p.services_count}</span>
                     </div>
                     <div style={{ padding: '8px 10px', borderRadius: radius.sm, background: color.panelAlt, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <span style={{ color: color.textFaint, fontSize: 10.5 }}>Владелец</span>
-                      <span
-                        style={{
-                          color: color.textPrimaryAlt,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {p.owner_name ?? '—'}
+                      <span style={{ color: color.textFaint, fontSize: 10.5 }}>Часы</span>
+                      <span style={{ color: color.textPrimaryAlt, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {hoursById.get(p.id) ?? '—'}
                       </span>
                     </div>
                   </div>
@@ -330,7 +339,7 @@ export function PointsPage() {
           <DataTable>
             <DataTableHeaderRow
               gridTemplateColumns={TABLE_COLUMNS}
-              columns={['Мойка', 'Адрес', 'Боксы', 'Услуги', 'Статус', '']}
+              columns={['Мойка', 'Адрес', 'Боксы', 'Услуги', 'Часы', 'Статус', '']}
             />
             {pointsQuery.isLoading ? (
               <div style={{ padding: 20, color: color.textFaint, fontSize: 13 }}>Загрузка…</div>
@@ -375,6 +384,7 @@ export function PointsPage() {
                   </div>
                   <div style={{ color: color.textPrimaryAlt, fontSize: 13 }}>{p.boxes_count}</div>
                   <div style={{ color: color.textPrimaryAlt, fontSize: 13 }}>{p.services_count}</div>
+                  <div style={{ color: color.textTertiary, fontSize: 13, whiteSpace: 'nowrap' }}>{hoursById.get(p.id) ?? '—'}</div>
                   <div>
                     <StatusPill kind={STATUS_KIND[p.status]}>{STATUS_LABEL[p.status]}</StatusPill>
                   </div>
